@@ -176,6 +176,42 @@ st.markdown(
         background: transparent !important;
     }
 
+    /* Buttons and segmented control - better contrast + feedback */
+    .stButton > button {
+        background: linear-gradient(180deg, #4F46E5 0%, #4338CA 100%) !important;
+        color: #FFFFFF !important;
+        border: 1px solid #3730A3 !important;
+        border-radius: 10px !important;
+        font-weight: 700 !important;
+        min-height: 2.5rem !important;
+        transition: all 0.18s ease !important;
+        box-shadow: 0 1px 4px rgba(67, 56, 202, 0.25) !important;
+    }
+    .stButton > button:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 6px 16px rgba(67, 56, 202, 0.28) !important;
+    }
+    .stButton > button:active {
+        transform: translateY(0);
+        filter: brightness(0.97);
+    }
+    .stButton > button:focus-visible {
+        outline: 3px solid #A5B4FC !important;
+        outline-offset: 1px !important;
+    }
+    [data-testid="stSegmentedControl"] button {
+        border: 1px solid #CBD5E1 !important;
+        color: #334155 !important;
+        background: #F8FAFC !important;
+        font-weight: 600 !important;
+    }
+    [data-testid="stSegmentedControl"] button[aria-pressed="true"] {
+        background: #4F46E5 !important;
+        border-color: #4338CA !important;
+        color: #FFFFFF !important;
+        box-shadow: 0 2px 10px rgba(79, 70, 229, 0.25) !important;
+    }
+
     /* Multiselect tags */
     span[data-baseweb="tag"] {
         background: #EEF2FF !important;
@@ -350,6 +386,11 @@ def sync_multiselect_state(key: str, valid_options: list[str]) -> None:
     st.session_state[key] = [v for v in current if v in valid_options]
 
 
+def clear_filters() -> None:
+    for key in ["f_cese", "f_cliente", "f_unidad", "f_cargo", "f_provincia"]:
+        st.session_state[key] = []
+
+
 def apply_filters(df: pd.DataFrame):
     with st.sidebar:
         st.markdown("## Filtros")
@@ -429,10 +470,11 @@ def apply_filters(df: pd.DataFrame):
         )
 
         st.divider()
-        if st.button("🔄 Limpiar filtros", use_container_width=True):
-            for key in ["f_cese", "f_cliente", "f_unidad", "f_cargo", "f_provincia"]:
-                st.session_state[key] = []
-            st.rerun()
+        st.button(
+            "🔄 Limpiar filtros",
+            use_container_width=True,
+            on_click=clear_filters,
+        )
 
     # Apply to base
     filtered = base
@@ -689,6 +731,7 @@ def tab_geography(df: pd.DataFrame, coords: pd.DataFrame) -> None:
                 use_container_width=True,
                 height=460,
                 returned_objects=[],
+                key="geo_map",
             )
 
     # Top provinces table
