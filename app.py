@@ -780,13 +780,33 @@ def main() -> None:
     kpi_cards(filtered)
     st.divider()
 
-    tab1, tab2, tab3 = st.tabs(["📈  Análisis", "🗺️  Geografía", "📋  Detalle"])
+    tab_options = {
+        "analisis": "📈  Análisis",
+        "geografia": "🗺️  Geografía",
+        "detalle": "📋  Detalle",
+    }
+    st.session_state.setdefault("active_tab", "analisis")
+    if st.session_state["active_tab"] not in tab_options:
+        st.session_state["active_tab"] = "analisis"
 
-    with tab1:
+    selected_label = st.segmented_control(
+        "Sección",
+        options=list(tab_options.values()),
+        selection_mode="single",
+        default=tab_options[st.session_state["active_tab"]],
+        label_visibility="collapsed",
+    )
+
+    if selected_label:
+        st.session_state["active_tab"] = next(
+            key for key, label in tab_options.items() if label == selected_label
+        )
+
+    if st.session_state["active_tab"] == "analisis":
         tab_analysis(filtered)
-    with tab2:
+    elif st.session_state["active_tab"] == "geografia":
         tab_geography(filtered, coords)
-    with tab3:
+    else:
         tab_detail(filtered)
 
     st.markdown(
