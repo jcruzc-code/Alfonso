@@ -466,16 +466,28 @@ COLORS = ["#4F46E5", "#06B6D4", "#10B981", "#F59E0B", "#EF4444",
 def chart_layout(fig, height=300):
     fig.update_layout(
         template="plotly_white",
+        autosize=True,
         height=height,
-        margin=dict(l=0, r=20, t=10, b=0),
+        margin=dict(l=10, r=10, t=10, b=10),
         paper_bgcolor="white",
         plot_bgcolor="white",
         font_family="DM Sans",
         font_color="#111827",
         legend=dict(font=dict(color="#111827")),
+        uniformtext_minsize=9,
+        uniformtext_mode="hide",
     )
-    fig.update_xaxes(tickfont=dict(color="#111827"), title_font=dict(color="#111827"))
-    fig.update_yaxes(tickfont=dict(color="#111827"), title_font=dict(color="#111827"))
+    fig.update_xaxes(
+        tickfont=dict(color="#111827"),
+        title_font=dict(color="#111827"),
+        automargin=True,
+        constrain="domain",
+    )
+    fig.update_yaxes(
+        tickfont=dict(color="#111827"),
+        title_font=dict(color="#111827"),
+        automargin=True,
+    )
     return fig
 
 
@@ -490,7 +502,7 @@ def tab_analysis(df: pd.DataFrame) -> None:
         d.columns = ["CLIENTE", "N"]
         fig = px.bar(d, x="N", y="CLIENTE", orientation="h",
                      color="N", color_continuous_scale=["#C7D2FE", "#4F46E5"], text="N")
-        fig.update_traces(textfont_size=11, textposition="outside", textfont_color="#1E293B")
+        fig.update_traces(textfont_size=10, textposition="auto", textfont_color="#1E293B", cliponaxis=False)
         fig = chart_layout(fig)
         fig.update_layout(coloraxis_showscale=False,
                           yaxis=dict(autorange="reversed", tickfont_size=11, title=""),
@@ -517,7 +529,7 @@ def tab_analysis(df: pd.DataFrame) -> None:
         d3.columns = ["CARGO", "N"]
         fig3 = px.bar(d3, x="N", y="CARGO", orientation="h",
                       color_discrete_sequence=["#06B6D4"], text="N")
-        fig3.update_traces(textfont_size=11, textposition="outside", textfont_color="#1E293B")
+        fig3.update_traces(textfont_size=10, textposition="auto", textfont_color="#1E293B", cliponaxis=False)
         fig3 = chart_layout(fig3)
         fig3.update_layout(yaxis=dict(autorange="reversed", tickfont_size=10, title=""),
                             xaxis=dict(title="", showgrid=True, gridcolor="#F1F5F9"),
@@ -565,7 +577,7 @@ def tab_analysis(df: pd.DataFrame) -> None:
             reg.columns = ["REGIMEN", "N"]
             fig5 = px.bar(reg, x="N", y="REGIMEN", orientation="h",
                           color="N", color_continuous_scale=["#BAE6FD", "#0EA5E9"], text="N")
-            fig5.update_traces(textfont_size=11, textposition="outside", textfont_color="#1E293B")
+            fig5.update_traces(textfont_size=10, textposition="auto", textfont_color="#1E293B", cliponaxis=False)
             fig5 = chart_layout(fig5, height=260)
             fig5.update_layout(coloraxis_showscale=False,
                                 yaxis=dict(autorange="reversed", title="", tickfont_size=10),
