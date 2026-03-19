@@ -199,17 +199,35 @@ st.markdown(
         outline: 3px solid #A5B4FC !important;
         outline-offset: 1px !important;
     }
+    [data-testid="stSegmentedControl"] {
+        background: #FFFFFF !important;
+        border: 1px solid #E2E8F0 !important;
+        border-radius: 12px !important;
+        padding: 0.25rem !important;
+        box-shadow: 0 1px 6px rgba(15, 23, 42, 0.06) !important;
+        margin-bottom: 0.4rem !important;
+    }
     [data-testid="stSegmentedControl"] button {
-        border: 1px solid #CBD5E1 !important;
+        border: 1px solid transparent !important;
         color: #334155 !important;
+        background: #FFFFFF !important;
+        font-weight: 700 !important;
+        border-radius: 9px !important;
+        transition: all 0.15s ease !important;
+    }
+    [data-testid="stSegmentedControl"] button:hover {
         background: #F8FAFC !important;
-        font-weight: 600 !important;
+        border-color: #CBD5E1 !important;
     }
     [data-testid="stSegmentedControl"] button[aria-pressed="true"] {
         background: #4F46E5 !important;
         border-color: #4338CA !important;
         color: #FFFFFF !important;
         box-shadow: 0 2px 10px rgba(79, 70, 229, 0.25) !important;
+    }
+    [data-testid="stSegmentedControl"] button:focus-visible {
+        outline: 3px solid #A5B4FC !important;
+        outline-offset: 1px !important;
     }
 
     /* Multiselect tags */
