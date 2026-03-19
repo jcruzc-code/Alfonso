@@ -176,6 +176,57 @@ st.markdown(
         background: transparent !important;
     }
 
+    /* Buttons and segmented control - better contrast + feedback */
+    .stButton > button {
+        background: #FFFFFF !important;
+        color: #1E293B !important;
+        border: 1px solid #CBD5E1 !important;
+        border-radius: 10px !important;
+        font-weight: 700 !important;
+        min-height: 2.5rem !important;
+        transition: all 0.18s ease !important;
+        box-shadow: 0 1px 4px rgba(15, 23, 42, 0.08) !important;
+    }
+    .stButton > button:hover {
+        transform: translateY(-1px);
+        border-color: #4F46E5 !important;
+        color: #312E81 !important;
+        box-shadow: 0 6px 16px rgba(79, 70, 229, 0.18) !important;
+    }
+    .stButton > button:active {
+        transform: translateY(0);
+        background: #EEF2FF !important;
+    }
+    .stButton > button:focus-visible {
+        outline: 3px solid #A5B4FC !important;
+        outline-offset: 1px !important;
+    }
+    [data-testid="stSegmentedControl"] {
+        background: #FFFFFF !important;
+        border: 1px solid #E2E8F0 !important;
+        border-radius: 12px !important;
+        padding: 0.25rem !important;
+    }
+    [data-testid="stSegmentedControl"] button {
+        border: 1px solid transparent !important;
+        border-radius: 8px !important;
+        color: #334155 !important;
+        background: #FFFFFF !important;
+        font-weight: 600 !important;
+        min-height: 2.35rem !important;
+        transition: all 0.16s ease !important;
+    }
+    [data-testid="stSegmentedControl"] button:hover {
+        background: #F8FAFC !important;
+        color: #1E293B !important;
+    }
+    [data-testid="stSegmentedControl"] button[aria-pressed="true"] {
+        background: #EEF2FF !important;
+        border-color: #C7D2FE !important;
+        color: #3730A3 !important;
+        box-shadow: 0 1px 6px rgba(79, 70, 229, 0.16) !important;
+    }
+
     /* Multiselect tags */
     span[data-baseweb="tag"] {
         background: #EEF2FF !important;
@@ -350,6 +401,11 @@ def sync_multiselect_state(key: str, valid_options: list[str]) -> None:
     st.session_state[key] = [v for v in current if v in valid_options]
 
 
+def clear_filters() -> None:
+    for key in ["f_cese", "f_cliente", "f_unidad", "f_cargo", "f_provincia"]:
+        st.session_state[key] = []
+
+
 def apply_filters(df: pd.DataFrame):
     with st.sidebar:
         st.markdown("## Filtros")
@@ -429,10 +485,11 @@ def apply_filters(df: pd.DataFrame):
         )
 
         st.divider()
-        if st.button("🔄 Limpiar filtros", use_container_width=True):
-            for key in ["f_cese", "f_cliente", "f_unidad", "f_cargo", "f_provincia"]:
-                st.session_state[key] = []
-            st.rerun()
+        st.button(
+            "🔄 Limpiar filtros",
+            use_container_width=True,
+            on_click=clear_filters,
+        )
 
     # Apply to base
     filtered = base
@@ -689,6 +746,7 @@ def tab_geography(df: pd.DataFrame, coords: pd.DataFrame) -> None:
                 use_container_width=True,
                 height=460,
                 returned_objects=[],
+                key="geo_map",
             )
 
     # Top provinces table
