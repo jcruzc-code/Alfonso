@@ -491,6 +491,34 @@ def chart_layout(fig, height=300):
     return fig
 
 
+def style_horizontal_bar(
+    fig,
+    max_value: float,
+    y_tick_size: int = 10,
+    left_margin: int = 220,
+    right_margin: int = 56,
+):
+    fig.update_traces(
+        textposition="outside",
+        texttemplate="%{x:,.0f}",
+        cliponaxis=False,
+        textfont_size=10,
+        textfont_color="#1E293B",
+    )
+    fig.update_layout(
+        margin=dict(l=left_margin, r=right_margin, t=10, b=10),
+        yaxis=dict(autorange="reversed", tickfont_size=y_tick_size, title=""),
+        xaxis=dict(
+            title="",
+            showgrid=True,
+            gridcolor="#F1F5F9",
+            range=[0, max(1, max_value * 1.18)],
+        ),
+        showlegend=False,
+    )
+    return fig
+
+
 # ── Analysis tab ─────────────────────────────────────────────────────────────
 def tab_analysis(df: pd.DataFrame) -> None:
     col1, col2, col3 = st.columns([1.2, 1, 0.8])
@@ -502,12 +530,9 @@ def tab_analysis(df: pd.DataFrame) -> None:
         d.columns = ["CLIENTE", "N"]
         fig = px.bar(d, x="N", y="CLIENTE", orientation="h",
                      color="N", color_continuous_scale=["#C7D2FE", "#4F46E5"], text="N")
-        fig.update_traces(textfont_size=10, textposition="auto", textfont_color="#1E293B", cliponaxis=False)
         fig = chart_layout(fig)
-        fig.update_layout(coloraxis_showscale=False,
-                          yaxis=dict(autorange="reversed", tickfont_size=11, title=""),
-                          xaxis=dict(title="", showgrid=True, gridcolor="#F1F5F9"),
-                          showlegend=False)
+        fig = style_horizontal_bar(fig, max_value=d["N"].max(), y_tick_size=11, left_margin=260)
+        fig.update_layout(coloraxis_showscale=False)
         st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
 
     with col2:
@@ -517,7 +542,12 @@ def tab_analysis(df: pd.DataFrame) -> None:
         d2.columns = ["UNIDAD", "N"]
         fig2 = px.pie(d2, values="N", names="UNIDAD",
                       color_discrete_sequence=COLORS, hole=0.45)
-        fig2.update_traces(textinfo="percent", textfont_size=11, textfont_color="#111827")
+        fig2.update_traces(
+            textinfo="percent+value",
+            textfont_size=11,
+            textfont_color="#111827",
+            hovertemplate="%{label}<br>DNI únicos: %{value:,}<br>%{percent}<extra></extra>",
+        )
         fig2 = chart_layout(fig2)
         fig2.update_layout(legend=dict(font_size=10))
         st.plotly_chart(fig2, use_container_width=True, config={"displayModeBar": False})
@@ -529,11 +559,8 @@ def tab_analysis(df: pd.DataFrame) -> None:
         d3.columns = ["CARGO", "N"]
         fig3 = px.bar(d3, x="N", y="CARGO", orientation="h",
                       color_discrete_sequence=["#06B6D4"], text="N")
-        fig3.update_traces(textfont_size=10, textposition="auto", textfont_color="#1E293B", cliponaxis=False)
         fig3 = chart_layout(fig3)
-        fig3.update_layout(yaxis=dict(autorange="reversed", tickfont_size=10, title=""),
-                            xaxis=dict(title="", showgrid=True, gridcolor="#F1F5F9"),
-                            showlegend=False)
+        fig3 = style_horizontal_bar(fig3, max_value=d3["N"].max(), y_tick_size=10, left_margin=200)
         st.plotly_chart(fig3, use_container_width=True, config={"displayModeBar": False})
 
     # Trend row
@@ -577,11 +604,9 @@ def tab_analysis(df: pd.DataFrame) -> None:
             reg.columns = ["REGIMEN", "N"]
             fig5 = px.bar(reg, x="N", y="REGIMEN", orientation="h",
                           color="N", color_continuous_scale=["#BAE6FD", "#0EA5E9"], text="N")
-            fig5.update_traces(textfont_size=10, textposition="auto", textfont_color="#1E293B", cliponaxis=False)
             fig5 = chart_layout(fig5, height=260)
-            fig5.update_layout(coloraxis_showscale=False,
-                                yaxis=dict(autorange="reversed", title="", tickfont_size=10),
-                                xaxis=dict(title="", showgrid=True, gridcolor="#F1F5F9"))
+            fig5 = style_horizontal_bar(fig5, max_value=reg["N"].max(), y_tick_size=10, left_margin=190)
+            fig5.update_layout(coloraxis_showscale=False)
             st.plotly_chart(fig5, use_container_width=True, config={"displayModeBar": False})
 
 
