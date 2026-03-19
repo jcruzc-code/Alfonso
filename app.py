@@ -440,7 +440,6 @@ def tab_analysis(df: pd.DataFrame) -> None:
         fig = px.bar(d, x="N", y="CLIENTE", orientation="h",
                      color="N", color_continuous_scale=["#C7D2FE", "#4F46E5"], text="N")
         fig.update_traces(textfont_size=11, textposition="outside")
-        fig.update_layout(**chart_layout(fig).__dict__["layout"])  # reuse size
         fig = chart_layout(fig)
         fig.update_layout(coloraxis_showscale=False,
                           yaxis=dict(autorange="reversed", tickfont_size=11, title=""),
