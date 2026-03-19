@@ -349,7 +349,7 @@ def load_data(path: Path) -> pd.DataFrame:
     cat_cols = ["CLIENTE", "UNIDAD", "CARGO", "PLANILLA", "REGIMEN PLANILLA"]
     for col in cat_cols:
         if col in df.columns:
-            df[col] = df[col].fillna("S/I").astype(str).str.strip().astype("category")
+            df[col] = df[col].map(normalize_text).astype("category")
     return df
 
 
@@ -552,6 +552,7 @@ def style_horizontal_bar(
     y_tick_size: int = 10,
     left_margin: int = 220,
     right_margin: int = 56,
+    show_x_ticks: bool = True,
 ):
     fig.update_traces(
         textposition="outside",
@@ -567,6 +568,7 @@ def style_horizontal_bar(
             title="",
             showgrid=True,
             gridcolor="#F1F5F9",
+            showticklabels=show_x_ticks,
             range=[0, max(1, max_value * 1.18)],
         ),
         showlegend=False,
@@ -576,7 +578,7 @@ def style_horizontal_bar(
 
 # ── Analysis tab ─────────────────────────────────────────────────────────────
 def tab_analysis(df: pd.DataFrame) -> None:
-    col1, col2, col3 = st.columns([1.2, 1, 0.8])
+    col1, col2, col3 = st.columns([1.1, 1, 0.95])
 
     with col1:
         st.markdown('<p class="section-header">Top Clientes · DNI únicos</p>', unsafe_allow_html=True)
@@ -615,7 +617,14 @@ def tab_analysis(df: pd.DataFrame) -> None:
         fig3 = px.bar(d3, x="N", y="CARGO", orientation="h",
                       color_discrete_sequence=["#06B6D4"], text="N")
         fig3 = chart_layout(fig3)
-        fig3 = style_horizontal_bar(fig3, max_value=d3["N"].max(), y_tick_size=10, left_margin=200)
+        fig3 = style_horizontal_bar(
+            fig3,
+            max_value=d3["N"].max(),
+            y_tick_size=10,
+            left_margin=240,
+            right_margin=72,
+            show_x_ticks=False,
+        )
         st.plotly_chart(fig3, use_container_width=True, config={"displayModeBar": False})
 
     # Trend row
