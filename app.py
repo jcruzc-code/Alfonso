@@ -1,4 +1,5 @@
 import unicodedata
+from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 
 import numpy as np
@@ -6,7 +7,6 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
-from geopy.geocoders import Nominatim
 
 # ── Page config ──────────────────────────────────────────────────────────────
 st.set_page_config(
@@ -234,6 +234,12 @@ PERU_COORDS = {
 }
 
 
+try:
+    STREAMLIT_VERSION = version("streamlit")
+except PackageNotFoundError:
+    STREAMLIT_VERSION = "No detectada"
+
+
 def normalize_text(value) -> str:
     if pd.isna(value):
         return "S/I"
@@ -266,66 +272,36 @@ def load_data(path: Path) -> pd.DataFrame:
 
 @st.cache_data(show_spinner=False)
 def get_coordinates(provinces: tuple) -> pd.DataFrame:
-    """
-    Returns coordinates using embedded dict first (instant, no HTTP),
-    then cached CSV, then Nominatim only for truly unknown provinces.
-    """
+    """Devuelve coordenadas locales sin llamadas HTTP para evitar bloqueos."""
     rows = []
-    unknown = []
+    cached_dict = {}
+    if COORDS_CACHE.exists():
+        try:
+            cached = pd.read_csv(COORDS_CACHE)
+            cached_dict = {r["PROVINCIA"]: (r["lat"], r["lon"]) for _, r in cached.iterrows()}
+        except Exception:
+            cached_dict = {}
+
     for prov in provinces:
         if prov in ("S/I", ""):
             continue
         if prov in PERU_COORDS:
             lat, lon = PERU_COORDS[prov]
-            rows.append({"PROVINCIA": prov, "lat": lat, "lon": lon})
+        elif prov in cached_dict:
+            lat, lon = cached_dict[prov]
         else:
-            unknown.append(prov)
-
-    # Check CSV cache for remaining
-    if unknown and COORDS_CACHE.exists():
-        try:
-            cached = pd.read_csv(COORDS_CACHE)
-            cached_dict = {r["PROVINCIA"]: (r["lat"], r["lon"]) for _, r in cached.iterrows()}
-            still_unknown = []
-            for prov in unknown:
-                if prov in cached_dict and not pd.isna(cached_dict[prov][0]):
-                    rows.append({"PROVINCIA": prov, "lat": cached_dict[prov][0], "lon": cached_dict[prov][1]})
-                else:
-                    still_unknown.append(prov)
-            unknown = still_unknown
-        except Exception:
-            pass
-
-    # Geocode only the truly unknown ones (usually 0)
-    if unknown:
-        try:
-            geolocator = Nominatim(user_agent="dashboard_personal_bi_v2", timeout=5)
-            new_rows = []
-            for prov in unknown:
-                lat, lon = np.nan, np.nan
-                try:
-                    loc = geolocator.geocode(f"{prov}, Peru", timeout=5)
-                    if loc:
-                        lat, lon = loc.latitude, loc.longitude
-                except Exception:
-                    pass
-                rows.append({"PROVINCIA": prov, "lat": lat, "lon": lon})
-                new_rows.append({"PROVINCIA": prov, "lat": lat, "lon": lon})
-            # Append to cache
-            new_df = pd.DataFrame(new_rows)
-            if COORDS_CACHE.exists():
-                existing = pd.read_csv(COORDS_CACHE)
-                pd.concat([existing, new_df]).drop_duplicates("PROVINCIA").to_csv(COORDS_CACHE, index=False)
-            else:
-                new_df.to_csv(COORDS_CACHE, index=False)
-        except Exception:
-            for prov in unknown:
-                rows.append({"PROVINCIA": prov, "lat": np.nan, "lon": np.nan})
+            lat, lon = np.nan, np.nan
+        rows.append({"PROVINCIA": prov, "lat": lat, "lon": lon})
 
     return pd.DataFrame(rows) if rows else pd.DataFrame(columns=["PROVINCIA", "lat", "lon"])
 
 
 # ── Cascading sidebar filters ─────────────────────────────────────────────────
+def sync_multiselect_state(key: str, valid_options: list[str]) -> None:
+    current = st.session_state.get(key, [])
+    st.session_state[key] = [v for v in current if v in valid_options]
+
+
 def apply_filters(df: pd.DataFrame):
     with st.sidebar:
         st.markdown("## Filtros")
@@ -363,30 +339,44 @@ def apply_filters(df: pd.DataFrame):
         # CASCADE 1 – Cliente
         st.markdown("**Cliente**")
         cliente_opts = sorted(base["CLIENTE"].dropna().unique())
-        cliente_sel = st.multiselect("Cliente", cliente_opts, label_visibility="collapsed")
+        sync_multiselect_state("f_cliente", cliente_opts)
+        cliente_sel = st.multiselect(
+            "Cliente", cliente_opts, key="f_cliente", label_visibility="collapsed"
+        )
 
         base_c = base[base["CLIENTE"].isin(cliente_sel)] if cliente_sel else base
 
         # CASCADE 2 – Unidad (depends on Cliente)
         st.markdown("**Unidad**")
         unidad_opts = sorted(base_c["UNIDAD"].dropna().unique())
-        unidad_sel = st.multiselect("Unidad", unidad_opts, label_visibility="collapsed")
+        sync_multiselect_state("f_unidad", unidad_opts)
+        unidad_sel = st.multiselect(
+            "Unidad", unidad_opts, key="f_unidad", label_visibility="collapsed"
+        )
 
         base_cu = base_c[base_c["UNIDAD"].isin(unidad_sel)] if unidad_sel else base_c
 
         # CASCADE 3 – Cargo (depends on Cliente + Unidad)
         st.markdown("**Cargo**")
         cargo_opts = sorted(base_cu["CARGO"].dropna().unique())
-        cargo_sel = st.multiselect("Cargo", cargo_opts, label_visibility="collapsed")
+        sync_multiselect_state("f_cargo", cargo_opts)
+        cargo_sel = st.multiselect(
+            "Cargo", cargo_opts, key="f_cargo", label_visibility="collapsed"
+        )
 
         # CASCADE 4 – Provincia (depends on all above)
         base_cuc = base_cu[base_cu["CARGO"].isin(cargo_sel)] if cargo_sel else base_cu
         st.markdown("**Provincia**")
         prov_opts = sorted(base_cuc["PROVINCIA"].dropna().unique())
-        prov_sel = st.multiselect("Provincia", prov_opts, label_visibility="collapsed")
+        sync_multiselect_state("f_provincia", prov_opts)
+        prov_sel = st.multiselect(
+            "Provincia", prov_opts, key="f_provincia", label_visibility="collapsed"
+        )
 
         st.divider()
         if st.button("🔄 Limpiar filtros", use_container_width=True):
+            for key in ["f_cliente", "f_unidad", "f_cargo", "f_provincia"]:
+                st.session_state[key] = []
             st.rerun()
 
     # Apply to base
@@ -551,7 +541,7 @@ def tab_geography(df: pd.DataFrame, coords: pd.DataFrame) -> None:
             st.info("Sin coordenadas disponibles para las provincias actuales.")
         else:
             max_v = grouped["DNI_UNICOS"].max()
-            fig_map = go.Figure(go.Scattermapbox(
+            fig_map = go.Figure(go.Scattergeo(
                 lat=grouped["lat"],
                 lon=grouped["lon"],
                 mode="markers",
@@ -564,7 +554,6 @@ def tab_geography(df: pd.DataFrame, coords: pd.DataFrame) -> None:
                     showscale=True,
                     colorbar=dict(title="DNI<br>únicos", thickness=12, len=0.6, x=1.01),
                     opacity=0.85,
-                    sizemode="diameter",
                 ),
                 text=grouped["PROVINCIA"],
                 customdata=grouped[["PROVINCIA", "DNI_UNICOS", "Registros"]].values,
@@ -575,8 +564,19 @@ def tab_geography(df: pd.DataFrame, coords: pd.DataFrame) -> None:
                 ),
             ))
             fig_map.update_layout(
-                mapbox=dict(style="carto-positron",
-                            center={"lat": -9.5, "lon": -75.0}, zoom=4.3),
+                geo=dict(
+                    scope="south america",
+                    center=dict(lat=-9.5, lon=-75.0),
+                    projection_type="mercator",
+                    lataxis=dict(range=[-19.5, 1.5]),
+                    lonaxis=dict(range=[-82.0, -67.0]),
+                    showcountries=True,
+                    countrycolor="#CBD5E1",
+                    showland=True,
+                    landcolor="#F8FAFC",
+                    showocean=True,
+                    oceancolor="#EFF6FF",
+                ),
                 height=450,
                 margin=dict(l=0, r=0, t=0, b=0),
                 paper_bgcolor="white",
@@ -672,6 +672,9 @@ def main() -> None:
         coords = get_coordinates(tuple(sorted(df["PROVINCIA"].dropna().unique())))
 
     filtered, active = apply_filters(df)
+    with st.sidebar:
+        st.caption(f"province_coords.csv: {'Sí' if COORDS_CACHE.exists() else 'No'}")
+        st.caption(f"Streamlit: {STREAMLIT_VERSION}")
 
     # Active filter badges
     badges = [
