@@ -228,8 +228,14 @@ st.markdown(
         box-shadow: none !important;
         padding: 0 !important;
     }
-    [data-testid="stSegmentedControl"] [data-baseweb="button-group"] > button,
-    [data-testid="stSegmentedControl"] [role="radio"] {
+    [data-testid="stSegmentedControl"] :is(
+        [data-baseweb="button-group"] > button,
+        [role="radio"],
+        button[kind="segmented_control"],
+        button[kind="segmented_controlActive"]
+    ),
+    button[data-testid="stBaseButton-segmented_control"],
+    button[data-testid="stBaseButton-segmented_controlActive"] {
         border: 1px solid #CBD5E1 !important;
         color: #1E293B !important;
         background: #FFFFFF !important;
@@ -238,67 +244,25 @@ st.markdown(
         transition: all 0.15s ease !important;
         box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06) !important;
     }
-    /* Streamlit segmented control (new DOM API using `kind`) */
-    [data-testid="stSegmentedControl"] button[kind="segmented_control"],
-    [data-testid="stSegmentedControl"] button[kind="segmented_controlActive"] {
-        border: 1px solid #CBD5E1 !important;
-        color: #1E293B !important;
-        background: #FFFFFF !important;
-        border-radius: 12px !important;
-        transition: all 0.15s ease !important;
-        box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06) !important;
-    }
-    /* Streamlit segmented control fallback selectors (data-testid based) */
-    button[data-testid="stBaseButton-segmented_control"],
-    button[data-testid="stBaseButton-segmented_controlActive"] {
-        border: 1px solid #CBD5E1 !important;
-        color: #1E293B !important;
-        background: #FFFFFF !important;
-        border-radius: 12px !important;
-        transition: all 0.15s ease !important;
-        box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06) !important;
-    }
     button[data-testid="stBaseButton-segmented_control"] > div,
     button[data-testid="stBaseButton-segmented_controlActive"] > div {
         background: transparent !important;
     }
-    [data-testid="stSegmentedControl"] button[kind="segmented_control"] p,
-    [data-testid="stSegmentedControl"] button[kind="segmented_controlActive"] p,
-    [data-testid="stSegmentedControl"] button[kind="segmented_control"] span,
-    [data-testid="stSegmentedControl"] button[kind="segmented_controlActive"] span {
+    [data-testid="stSegmentedControl"] :is(button, [role="radio"]) :is(p, span),
+    button[data-testid="stBaseButton-segmented_control"] :is(p, span),
+    button[data-testid="stBaseButton-segmented_controlActive"] :is(p, span) {
         color: #1E293B !important;
     }
-    button[data-testid="stBaseButton-segmented_control"] p,
-    button[data-testid="stBaseButton-segmented_controlActive"] p,
-    button[data-testid="stBaseButton-segmented_control"] span,
-    button[data-testid="stBaseButton-segmented_controlActive"] span {
-        color: #1E293B !important;
-    }
-    [data-testid="stSegmentedControl"] [data-baseweb="button-group"] > button:hover,
-    [data-testid="stSegmentedControl"] [role="radio"]:hover {
+    [data-testid="stSegmentedControl"] :is([data-baseweb="button-group"] > button, [role="radio"]):hover,
+    button[data-testid="stBaseButton-segmented_control"]:hover {
         background: #F8FAFC !important;
         border-color: #94A3B8 !important;
     }
-    [data-testid="stSegmentedControl"] [data-baseweb="button-group"] > button[aria-pressed="true"],
-    [data-testid="stSegmentedControl"] [role="radio"][aria-checked="true"] {
-        background: #EEF2FF !important;
-        border-color: #4F46E5 !important;
-        color: #3730A3 !important;
-        box-shadow: 0 0 0 1px rgba(79, 70, 229, 0.2), 0 3px 8px rgba(79, 70, 229, 0.18) !important;
-    }
-    [data-testid="stSegmentedControl"] button[kind="segmented_controlActive"] {
-        color: #14532D !important;
-        border: 1px solid #22C55E !important;
-        background: linear-gradient(
-            135deg,
-            rgba(187, 247, 208, 0.95) 0%,
-            rgba(220, 252, 231, 0.9) 100%
-        ) !important;
-        box-shadow:
-            0 0 0 1px rgba(34, 197, 94, 0.25),
-            0 6px 18px rgba(34, 197, 94, 0.28),
-            0 0 18px rgba(134, 239, 172, 0.45) !important;
-    }
+    [data-testid="stSegmentedControl"] :is(
+        [data-baseweb="button-group"] > button[aria-pressed="true"],
+        [role="radio"][aria-checked="true"],
+        button[kind="segmented_controlActive"]
+    ),
     button[data-testid="stBaseButton-segmented_controlActive"] {
         color: #14532D !important;
         border: 1px solid #22C55E !important;
@@ -312,12 +276,12 @@ st.markdown(
             0 6px 18px rgba(34, 197, 94, 0.28),
             0 0 18px rgba(134, 239, 172, 0.45) !important;
     }
-    [data-testid="stSegmentedControl"] button[kind="segmented_controlActive"] p,
-    [data-testid="stSegmentedControl"] button[kind="segmented_controlActive"] span {
-        color: #14532D !important;
-    }
-    button[data-testid="stBaseButton-segmented_controlActive"] p,
-    button[data-testid="stBaseButton-segmented_controlActive"] span {
+    [data-testid="stSegmentedControl"] :is(
+        [data-baseweb="button-group"] > button[aria-pressed="true"],
+        [role="radio"][aria-checked="true"],
+        button[kind="segmented_controlActive"]
+    ) :is(p, span),
+    button[data-testid="stBaseButton-segmented_controlActive"] :is(p, span) {
         color: #14532D !important;
     }
     [data-testid="stSegmentedControl"] [data-baseweb="button-group"] > button:focus-visible,
