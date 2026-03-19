@@ -283,6 +283,37 @@ st.markdown(
     [data-testid="stSegmentedControl"] button[kind="segmented_controlActive"] span {
         color: #14532D !important;
     }
+    /* Fallback selectors for newer Streamlit DOM/testids */
+    [data-testid^="stBaseButton-segmented_control"] {
+        border: 1px solid #CBD5E1 !important;
+        color: #1E293B !important;
+        background: #FFFFFF !important;
+        border-radius: 12px !important;
+        box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06) !important;
+    }
+    [data-testid^="stBaseButton-segmented_control"] [data-testid="stMarkdownContainer"] p,
+    [data-testid^="stBaseButton-segmented_control"] [data-testid="stIconEmoji"],
+    [data-testid^="stBaseButton-segmented_control"] span {
+        color: #1E293B !important;
+    }
+    [data-testid="stBaseButton-segmented_controlActive"] {
+        color: #14532D !important;
+        border: 1px solid #22C55E !important;
+        background: linear-gradient(
+            135deg,
+            rgba(187, 247, 208, 0.95) 0%,
+            rgba(220, 252, 231, 0.9) 100%
+        ) !important;
+        box-shadow:
+            0 0 0 1px rgba(34, 197, 94, 0.25),
+            0 6px 18px rgba(34, 197, 94, 0.28),
+            0 0 18px rgba(134, 239, 172, 0.45) !important;
+    }
+    [data-testid="stBaseButton-segmented_controlActive"] [data-testid="stMarkdownContainer"] p,
+    [data-testid="stBaseButton-segmented_controlActive"] [data-testid="stIconEmoji"],
+    [data-testid="stBaseButton-segmented_controlActive"] span {
+        color: #14532D !important;
+    }
     [data-testid="stSegmentedControl"] [data-baseweb="button-group"] > button:focus-visible,
     [data-testid="stSegmentedControl"] [role="radio"]:focus-visible {
         outline: 3px solid #A5B4FC !important;
