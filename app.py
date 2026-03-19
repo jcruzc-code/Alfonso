@@ -1,4 +1,3 @@
-import json
 import unicodedata
 from pathlib import Path
 
@@ -8,14 +7,144 @@ import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 from geopy.geocoders import Nominatim
-from streamlit_plotly_events import plotly_events
 
+# ── Page config ──────────────────────────────────────────────────────────────
 st.set_page_config(
     page_title="Dashboard Ejecutivo de Personal",
     page_icon="📊",
     layout="wide",
 )
 
+# ── Custom CSS – Light BI theme ───────────────────────────────────────────────
+st.markdown(
+    """
+    <style>
+    @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap');
+
+    html, body, [class*="css"] {
+        font-family: 'DM Sans', sans-serif;
+    }
+
+    /* Background */
+    .stApp { background: #F4F6FA; }
+
+    /* Main block padding */
+    .block-container {
+        padding: 1.5rem 2rem 2rem 2rem;
+        max-width: 100%;
+    }
+
+    /* Sidebar */
+    section[data-testid="stSidebar"] {
+        background: #FFFFFF;
+        border-right: 1px solid #E2E8F0;
+        padding-top: 1rem;
+    }
+
+    /* Metric cards */
+    div[data-testid="metric-container"] {
+        background: #FFFFFF;
+        border: 1px solid #E2E8F0;
+        border-radius: 12px;
+        padding: 1.25rem 1.5rem;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+    }
+    div[data-testid="metric-container"] label {
+        font-size: 0.72rem !important;
+        font-weight: 600 !important;
+        letter-spacing: 0.06em !important;
+        text-transform: uppercase !important;
+        color: #94A3B8 !important;
+    }
+    div[data-testid="metric-container"] div[data-testid="stMetricValue"] {
+        font-size: 2rem !important;
+        font-weight: 700 !important;
+        color: #1E293B !important;
+        font-family: 'DM Mono', monospace !important;
+    }
+
+    /* Section headers */
+    .section-header {
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #64748B;
+        margin: 1.5rem 0 0.75rem 0;
+        padding-bottom: 0.5rem;
+        border-bottom: 2px solid #E2E8F0;
+    }
+
+    /* Chart cards */
+    .chart-card {
+        background: #FFFFFF;
+        border: 1px solid #E2E8F0;
+        border-radius: 12px;
+        padding: 1.25rem 1.5rem;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+        margin-bottom: 1rem;
+    }
+
+    /* Dashboard title */
+    .dashboard-title {
+        font-size: 1.6rem;
+        font-weight: 700;
+        color: #1E293B;
+        margin-bottom: 0.1rem;
+        line-height: 1.2;
+    }
+    .dashboard-subtitle {
+        font-size: 0.85rem;
+        color: #64748B;
+        margin-bottom: 1.25rem;
+    }
+
+    /* Filter badges */
+    .filter-badge {
+        display: inline-block;
+        background: #EEF2FF;
+        color: #4F46E5;
+        border-radius: 20px;
+        padding: 0.15rem 0.75rem;
+        font-size: 0.75rem;
+        font-weight: 600;
+        margin: 0.2rem;
+    }
+
+    /* Tabs */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 0;
+        border-bottom: 2px solid #E2E8F0;
+        background: transparent;
+    }
+    .stTabs [data-baseweb="tab"] {
+        font-size: 0.8rem;
+        font-weight: 600;
+        letter-spacing: 0.04em;
+        padding: 0.5rem 1.25rem;
+        color: #94A3B8;
+    }
+    .stTabs [aria-selected="true"] {
+        color: #4F46E5 !important;
+        border-bottom: 2px solid #4F46E5;
+        background: transparent !important;
+    }
+
+    /* Multiselect tags */
+    span[data-baseweb="tag"] {
+        background: #EEF2FF !important;
+        color: #4F46E5 !important;
+        border-radius: 4px !important;
+    }
+
+    /* Hide streamlit branding */
+    #MainMenu, footer, header { visibility: hidden; }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
+# ── Constants ─────────────────────────────────────────────────────────────────
 DATA_FILE = Path("datos_git.xlsx")
 COORDS_CACHE = Path("province_coords.csv")
 
@@ -46,8 +175,66 @@ DISTRICT_CORRECTIONS = {
     "TAMBO GRANDE": "TAMBOGRANDE",
 }
 
+# Embedded coordinates – no HTTP calls needed for these
+PERU_COORDS = {
+    "LIMA": (-12.0464, -77.0428),
+    "CALLAO": (-12.0595, -77.1181),
+    "AREQUIPA": (-16.409, -71.5375),
+    "TRUJILLO": (-8.111, -79.0288),
+    "PIURA": (-5.1945, -80.6328),
+    "CUSCO": (-13.5319, -71.9675),
+    "HUANCAYO": (-12.0651, -75.2049),
+    "CHICLAYO": (-6.7714, -79.8409),
+    "ICA": (-14.0678, -75.7286),
+    "TACNA": (-18.0066, -70.2463),
+    "MAYNAS": (-3.7491, -73.2538),
+    "PUNO": (-15.8402, -70.0219),
+    "SAN ROMAN": (-15.4997, -70.1327),
+    "HUANUCO": (-9.9306, -76.2422),
+    "CAJAMARCA": (-7.1639, -78.5003),
+    "AYACUCHO": (-13.1588, -74.2236),
+    "JUNIN": (-11.1582, -75.9928),
+    "SANTA": (-9.0755, -78.5943),
+    "LAMBAYEQUE": (-6.7027, -79.9064),
+    "SULLANA": (-4.8996, -80.6883),
+    "HUARAZ": (-9.5276, -77.5278),
+    "MOQUEGUA": (-17.1931, -70.9320),
+    "PASCO": (-10.6832, -76.2633),
+    "SAN MARTIN": (-6.5000, -76.3667),
+    "CORONEL PORTILLO": (-8.3791, -74.5539),
+    "MADRE DE DIOS": (-12.5933, -69.1891),
+    "TUMBES": (-3.5669, -80.4515),
+    "AMAZONAS": (-6.2313, -77.8692),
+    "APURIMAC": (-13.6345, -72.8814),
+    "HUANCAVELICA": (-12.7870, -74.9768),
+    "PATAZ": (-8.0000, -77.0000),
+    "ACOBAMBA": (-12.8494, -74.5722),
+    "ANDAHUAYLAS": (-13.6560, -73.3830),
+    "ABANCAY": (-13.6345, -72.8814),
+    "CAÑETE": (-13.0797, -76.3697),
+    "CANETE": (-13.0797, -76.3697),
+    "HUARAL": (-11.4954, -77.2069),
+    "HUAROCHIRI": (-11.9917, -76.2225),
+    "BARRANCA": (-10.7500, -77.7667),
+    "CHINCHA": (-13.4125, -76.1386),
+    "PISCO": (-13.7141, -76.2033),
+    "NAZCA": (-14.8290, -74.9433),
+    "CHEPEN": (-7.2269, -79.4321),
+    "PACASMAYO": (-7.4011, -79.5703),
+    "ASCOPE": (-7.7202, -79.1388),
+    "VIRU": (-8.4122, -78.7533),
+    "OTUZCO": (-7.8999, -78.5679),
+    "CHOTA": (-6.5587, -78.6521),
+    "CUTERVO": (-6.3746, -78.8180),
+    "JAEN": (-5.7072, -78.8070),
+    "MOYOBAMBA": (-6.0340, -76.9720),
+    "CHACHAPOYAS": (-6.2313, -77.8692),
+    "UTCUBAMBA": (-5.8339, -78.1778),
+    "RECUAY": (-9.7225, -77.4563),
+}
 
-def normalize_text(value: str) -> str:
+
+def normalize_text(value) -> str:
     if pd.isna(value):
         return "S/I"
     raw = str(value).strip().upper()
@@ -63,264 +250,454 @@ def normalize_text(value: str) -> str:
 def load_data(path: Path) -> pd.DataFrame:
     df = pd.read_excel(path, sheet_name="WIDE")
     df.columns = [normalize_text(col) for col in df.columns]
-
     df["PROVINCIA"] = df["PROVINCIA"].map(normalize_text)
     df["DISTRITO"] = df["DISTRITO"].map(normalize_text)
-
     df["PROVINCIA"] = df["PROVINCIA"].replace(PROVINCE_CORRECTIONS)
     df["DISTRITO"] = df["DISTRITO"].replace(DISTRICT_CORRECTIONS)
-
     for col in ["FECHA DE INGRESO", "FECHA DE CESE"]:
         df[col] = pd.to_datetime(df[col], errors="coerce")
-
     df["DNI"] = pd.to_numeric(df["DNI"], errors="coerce").astype("Int64")
     cat_cols = ["CLIENTE", "UNIDAD", "CARGO", "PLANILLA", "REGIMEN PLANILLA"]
     for col in cat_cols:
-        df[col] = df[col].fillna("S/I").astype(str).str.strip()
-
+        if col in df.columns:
+            df[col] = df[col].fillna("S/I").astype(str).str.strip()
     return df
 
 
 @st.cache_data(show_spinner=False)
-def build_or_load_coordinates(provinces: tuple[str, ...]) -> pd.DataFrame:
-    if COORDS_CACHE.exists():
-        coords = pd.read_csv(COORDS_CACHE)
-    else:
-        geolocator = Nominatim(user_agent="dashboard_streamlit_provincias")
-        rows = []
-        for prov in provinces:
-            if prov == "S/I":
-                continue
-            query = f"{prov}, Peru"
-            lat, lon = np.nan, np.nan
-            try:
-                location = geolocator.geocode(query, timeout=10)
-                if location:
-                    lat, lon = location.latitude, location.longitude
-            except Exception:
-                pass
+def get_coordinates(provinces: tuple) -> pd.DataFrame:
+    """
+    Returns coordinates using embedded dict first (instant, no HTTP),
+    then cached CSV, then Nominatim only for truly unknown provinces.
+    """
+    rows = []
+    unknown = []
+    for prov in provinces:
+        if prov in ("S/I", ""):
+            continue
+        if prov in PERU_COORDS:
+            lat, lon = PERU_COORDS[prov]
             rows.append({"PROVINCIA": prov, "lat": lat, "lon": lon})
-        coords = pd.DataFrame(rows)
-        coords.to_csv(COORDS_CACHE, index=False)
+        else:
+            unknown.append(prov)
 
-    # Coordenadas de respaldo para provincias frecuentes
-    backup_coords = {
-        "LIMA": (-12.0464, -77.0428),
-        "CALLAO": (-12.0595, -77.1181),
-        "AREQUIPA": (-16.409, -71.5375),
-        "TRUJILLO": (-8.111, -79.0288),
-        "PIURA": (-5.1945, -80.6328),
-        "CUSCO": (-13.5319, -71.9675),
-        "HUANCAYO": (-12.0651, -75.2049),
-        "CHICLAYO": (-6.7714, -79.8409),
-        "ICA": (-14.0678, -75.7286),
-        "TACNA": (-18.0066, -70.2463),
-    }
-    for prov, (lat, lon) in backup_coords.items():
-        mask = coords["PROVINCIA"].eq(prov) & (coords["lat"].isna() | coords["lon"].isna())
-        coords.loc[mask, ["lat", "lon"]] = [lat, lon]
+    # Check CSV cache for remaining
+    if unknown and COORDS_CACHE.exists():
+        try:
+            cached = pd.read_csv(COORDS_CACHE)
+            cached_dict = {r["PROVINCIA"]: (r["lat"], r["lon"]) for _, r in cached.iterrows()}
+            still_unknown = []
+            for prov in unknown:
+                if prov in cached_dict and not pd.isna(cached_dict[prov][0]):
+                    rows.append({"PROVINCIA": prov, "lat": cached_dict[prov][0], "lon": cached_dict[prov][1]})
+                else:
+                    still_unknown.append(prov)
+            unknown = still_unknown
+        except Exception:
+            pass
 
-    return coords
+    # Geocode only the truly unknown ones (usually 0)
+    if unknown:
+        try:
+            geolocator = Nominatim(user_agent="dashboard_personal_bi_v2", timeout=5)
+            new_rows = []
+            for prov in unknown:
+                lat, lon = np.nan, np.nan
+                try:
+                    loc = geolocator.geocode(f"{prov}, Peru", timeout=5)
+                    if loc:
+                        lat, lon = loc.latitude, loc.longitude
+                except Exception:
+                    pass
+                rows.append({"PROVINCIA": prov, "lat": lat, "lon": lon})
+                new_rows.append({"PROVINCIA": prov, "lat": lat, "lon": lon})
+            # Append to cache
+            new_df = pd.DataFrame(new_rows)
+            if COORDS_CACHE.exists():
+                existing = pd.read_csv(COORDS_CACHE)
+                pd.concat([existing, new_df]).drop_duplicates("PROVINCIA").to_csv(COORDS_CACHE, index=False)
+            else:
+                new_df.to_csv(COORDS_CACHE, index=False)
+        except Exception:
+            for prov in unknown:
+                rows.append({"PROVINCIA": prov, "lat": np.nan, "lon": np.nan})
+
+    return pd.DataFrame(rows) if rows else pd.DataFrame(columns=["PROVINCIA", "lat", "lon"])
 
 
-def apply_filters(df: pd.DataFrame) -> pd.DataFrame:
-    st.sidebar.header("Filtros")
+# ── Cascading sidebar filters ─────────────────────────────────────────────────
+def apply_filters(df: pd.DataFrame):
+    with st.sidebar:
+        st.markdown("## Filtros")
 
-    min_date = df["FECHA DE CESE"].min()
-    max_date = df["FECHA DE CESE"].max()
+        # Date
+        st.markdown("**Estado**")
+        include_active = st.toggle("Incluir activos (sin cese)", value=True)
 
-    include_active = st.sidebar.toggle("Incluir activos (sin fecha de cese)", value=True)
-    if pd.notna(min_date) and pd.notna(max_date):
-        date_range = st.sidebar.date_input(
-            "Fecha cese (rango)",
-            value=(min_date.date(), max_date.date()),
-            min_value=min_date.date(),
-            max_value=max_date.date(),
-        )
-    else:
+        min_date = df["FECHA DE CESE"].min()
+        max_date = df["FECHA DE CESE"].max()
         date_range = ()
+        if pd.notna(min_date) and pd.notna(max_date):
+            st.markdown("**Fecha de cese**")
+            date_range = st.date_input(
+                "Rango",
+                value=(min_date.date(), max_date.date()),
+                min_value=min_date.date(),
+                max_value=max_date.date(),
+                label_visibility="collapsed",
+            )
 
-    cliente = st.sidebar.multiselect("Cliente", sorted(df["CLIENTE"].dropna().unique()))
-    unidad = st.sidebar.multiselect("Unidad", sorted(df["UNIDAD"].dropna().unique()))
-    cargo = st.sidebar.multiselect("Cargo", sorted(df["CARGO"].dropna().unique()))
+        st.divider()
 
-    filtered = df.copy()
-    if len(date_range) == 2:
-        start_date, end_date = pd.to_datetime(date_range[0]), pd.to_datetime(date_range[1])
-        mask_dates = filtered["FECHA DE CESE"].between(start_date, end_date, inclusive="both")
-        if include_active:
-            mask_dates = mask_dates | filtered["FECHA DE CESE"].isna()
-        filtered = filtered[mask_dates]
-    elif not include_active:
-        filtered = filtered[filtered["FECHA DE CESE"].notna()]
+        # Build base (date-filtered) for cascading
+        base = df.copy()
+        if len(date_range) == 2:
+            s, e = pd.to_datetime(date_range[0]), pd.to_datetime(date_range[1])
+            mask = base["FECHA DE CESE"].between(s, e)
+            if include_active:
+                mask = mask | base["FECHA DE CESE"].isna()
+            base = base[mask]
+        elif not include_active:
+            base = base[base["FECHA DE CESE"].notna()]
 
-    if cliente:
-        filtered = filtered[filtered["CLIENTE"].isin(cliente)]
-    if unidad:
-        filtered = filtered[filtered["UNIDAD"].isin(unidad)]
-    if cargo:
-        filtered = filtered[filtered["CARGO"].isin(cargo)]
+        # CASCADE 1 – Cliente
+        st.markdown("**Cliente**")
+        cliente_opts = sorted(base["CLIENTE"].dropna().unique())
+        cliente_sel = st.multiselect("Cliente", cliente_opts, label_visibility="collapsed")
 
-    return filtered
+        base_c = base[base["CLIENTE"].isin(cliente_sel)] if cliente_sel else base
+
+        # CASCADE 2 – Unidad (depends on Cliente)
+        st.markdown("**Unidad**")
+        unidad_opts = sorted(base_c["UNIDAD"].dropna().unique())
+        unidad_sel = st.multiselect("Unidad", unidad_opts, label_visibility="collapsed")
+
+        base_cu = base_c[base_c["UNIDAD"].isin(unidad_sel)] if unidad_sel else base_c
+
+        # CASCADE 3 – Cargo (depends on Cliente + Unidad)
+        st.markdown("**Cargo**")
+        cargo_opts = sorted(base_cu["CARGO"].dropna().unique())
+        cargo_sel = st.multiselect("Cargo", cargo_opts, label_visibility="collapsed")
+
+        # CASCADE 4 – Provincia (depends on all above)
+        base_cuc = base_cu[base_cu["CARGO"].isin(cargo_sel)] if cargo_sel else base_cu
+        st.markdown("**Provincia**")
+        prov_opts = sorted(base_cuc["PROVINCIA"].dropna().unique())
+        prov_sel = st.multiselect("Provincia", prov_opts, label_visibility="collapsed")
+
+        st.divider()
+        if st.button("🔄 Limpiar filtros", use_container_width=True):
+            st.rerun()
+
+    # Apply to base
+    filtered = base.copy()
+    if cliente_sel:
+        filtered = filtered[filtered["CLIENTE"].isin(cliente_sel)]
+    if unidad_sel:
+        filtered = filtered[filtered["UNIDAD"].isin(unidad_sel)]
+    if cargo_sel:
+        filtered = filtered[filtered["CARGO"].isin(cargo_sel)]
+    if prov_sel:
+        filtered = filtered[filtered["PROVINCIA"].isin(prov_sel)]
+
+    active = {
+        "cliente": cliente_sel,
+        "unidad": unidad_sel,
+        "cargo": cargo_sel,
+        "provincia": prov_sel,
+    }
+    return filtered, active
 
 
+# ── KPI cards ─────────────────────────────────────────────────────────────────
 def kpi_cards(df: pd.DataFrame) -> None:
-    dni_unicos = int(df["DNI"].dropna().nunique())
-    registros = int(len(df))
-    clientes = int(df["CLIENTE"].nunique())
-    unidades = int(df["UNIDAD"].nunique())
+    activos = int(df["FECHA DE CESE"].isna().sum())
+    cesados = int(df["FECHA DE CESE"].notna().sum())
+    c1, c2, c3, c4, c5, c6 = st.columns(6)
+    c1.metric("DNI únicos", f"{df['DNI'].dropna().nunique():,}")
+    c2.metric("Registros", f"{len(df):,}")
+    c3.metric("Activos", f"{activos:,}")
+    c4.metric("Cesados", f"{cesados:,}")
+    c5.metric("Clientes", f"{df['CLIENTE'].nunique():,}")
+    c6.metric("Unidades", f"{df['UNIDAD'].nunique():,}")
 
-    c1, c2, c3, c4 = st.columns(4)
-    c1.metric("DNI únicos", f"{dni_unicos:,}")
-    c2.metric("Registros", f"{registros:,}")
-    c3.metric("Clientes", f"{clientes:,}")
-    c4.metric("Unidades", f"{unidades:,}")
+
+COLORS = ["#4F46E5", "#06B6D4", "#10B981", "#F59E0B", "#EF4444",
+          "#8B5CF6", "#EC4899", "#14B8A6", "#F97316", "#6366F1"]
 
 
-def map_and_heat(df: pd.DataFrame, coords: pd.DataFrame) -> pd.DataFrame:
-    st.subheader("Mapa interactivo por provincia")
+def chart_layout(fig, height=300):
+    fig.update_layout(
+        height=height,
+        margin=dict(l=0, r=20, t=10, b=0),
+        paper_bgcolor="white",
+        plot_bgcolor="white",
+        font_family="DM Sans",
+    )
+    return fig
+
+
+# ── Analysis tab ─────────────────────────────────────────────────────────────
+def tab_analysis(df: pd.DataFrame) -> None:
+    col1, col2, col3 = st.columns([1.2, 1, 0.8])
+
+    with col1:
+        st.markdown('<div class="chart-card">', unsafe_allow_html=True)
+        st.markdown('<p class="section-header">Top Clientes · DNI únicos</p>', unsafe_allow_html=True)
+        d = (df.groupby("CLIENTE")["DNI"].nunique()
+             .sort_values(ascending=False).head(10).reset_index())
+        d.columns = ["CLIENTE", "N"]
+        fig = px.bar(d, x="N", y="CLIENTE", orientation="h",
+                     color="N", color_continuous_scale=["#C7D2FE", "#4F46E5"], text="N")
+        fig.update_traces(textfont_size=11, textposition="outside")
+        fig.update_layout(**chart_layout(fig).__dict__["layout"])  # reuse size
+        fig = chart_layout(fig)
+        fig.update_layout(coloraxis_showscale=False,
+                          yaxis=dict(autorange="reversed", tickfont_size=11, title=""),
+                          xaxis=dict(title="", showgrid=True, gridcolor="#F1F5F9"),
+                          showlegend=False)
+        st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    with col2:
+        st.markdown('<div class="chart-card">', unsafe_allow_html=True)
+        st.markdown('<p class="section-header">Distribución por Unidad</p>', unsafe_allow_html=True)
+        d2 = (df.groupby("UNIDAD")["DNI"].nunique()
+              .sort_values(ascending=False).head(8).reset_index())
+        d2.columns = ["UNIDAD", "N"]
+        fig2 = px.pie(d2, values="N", names="UNIDAD",
+                      color_discrete_sequence=COLORS, hole=0.45)
+        fig2.update_traces(textinfo="percent", textfont_size=11)
+        fig2 = chart_layout(fig2)
+        fig2.update_layout(legend=dict(font_size=10))
+        st.plotly_chart(fig2, use_container_width=True, config={"displayModeBar": False})
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    with col3:
+        st.markdown('<div class="chart-card">', unsafe_allow_html=True)
+        st.markdown('<p class="section-header">Top Cargos</p>', unsafe_allow_html=True)
+        d3 = (df.groupby("CARGO")["DNI"].nunique()
+              .sort_values(ascending=False).head(8).reset_index())
+        d3.columns = ["CARGO", "N"]
+        fig3 = px.bar(d3, x="N", y="CARGO", orientation="h",
+                      color_discrete_sequence=["#06B6D4"], text="N")
+        fig3.update_traces(textfont_size=11, textposition="outside")
+        fig3 = chart_layout(fig3)
+        fig3.update_layout(yaxis=dict(autorange="reversed", tickfont_size=10, title=""),
+                            xaxis=dict(title="", showgrid=True, gridcolor="#F1F5F9"),
+                            showlegend=False)
+        st.plotly_chart(fig3, use_container_width=True, config={"displayModeBar": False})
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    # Trend row
+    col4, col5 = st.columns(2)
+    with col4:
+        st.markdown('<div class="chart-card">', unsafe_allow_html=True)
+        st.markdown('<p class="section-header">Ingresos vs Ceses por mes</p>', unsafe_allow_html=True)
+        ing = (df["FECHA DE INGRESO"].dropna().dt.to_period("M")
+               .value_counts().sort_index().rename("Ingresos").reset_index())
+        ing.columns = ["Periodo", "Ingresos"]
+        ing["Periodo"] = ing["Periodo"].dt.to_timestamp()
+        ces = (df["FECHA DE CESE"].dropna().dt.to_period("M")
+               .value_counts().sort_index().rename("Ceses").reset_index())
+        ces.columns = ["Periodo", "Ceses"]
+        ces["Periodo"] = ces["Periodo"].dt.to_timestamp()
+        merged = pd.merge(ing, ces, on="Periodo", how="outer").sort_values("Periodo").fillna(0)
+        fig4 = go.Figure()
+        fig4.add_trace(go.Scatter(x=merged["Periodo"], y=merged["Ingresos"],
+                                  name="Ingresos", line=dict(color="#4F46E5", width=2),
+                                  fill="tozeroy", fillcolor="rgba(79,70,229,0.08)"))
+        fig4.add_trace(go.Scatter(x=merged["Periodo"], y=merged["Ceses"],
+                                  name="Ceses", line=dict(color="#EF4444", width=2, dash="dot")))
+        fig4 = chart_layout(fig4, height=260)
+        fig4.update_layout(legend=dict(orientation="h", y=1.1, font_size=11),
+                            xaxis=dict(showgrid=False),
+                            yaxis=dict(showgrid=True, gridcolor="#F1F5F9"))
+        st.plotly_chart(fig4, use_container_width=True, config={"displayModeBar": False})
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    with col5:
+        st.markdown('<div class="chart-card">', unsafe_allow_html=True)
+        st.markdown('<p class="section-header">Régimen de Planilla</p>', unsafe_allow_html=True)
+        if "REGIMEN PLANILLA" in df.columns:
+            reg = df["REGIMEN PLANILLA"].value_counts().head(8).reset_index()
+            reg.columns = ["REGIMEN", "N"]
+            fig5 = px.bar(reg, x="N", y="REGIMEN", orientation="h",
+                          color="N", color_continuous_scale=["#BAE6FD", "#0EA5E9"], text="N")
+            fig5.update_traces(textfont_size=11, textposition="outside")
+            fig5 = chart_layout(fig5, height=260)
+            fig5.update_layout(coloraxis_showscale=False,
+                                yaxis=dict(autorange="reversed", title="", tickfont_size=10),
+                                xaxis=dict(title="", showgrid=True, gridcolor="#F1F5F9"))
+            st.plotly_chart(fig5, use_container_width=True, config={"displayModeBar": False})
+        st.markdown('</div>', unsafe_allow_html=True)
+
+
+# ── Geography tab ─────────────────────────────────────────────────────────────
+def tab_geography(df: pd.DataFrame, coords: pd.DataFrame) -> None:
+    col1, col2 = st.columns([1.5, 1])
+
     grouped = (
         df.groupby("PROVINCIA", as_index=False)
-        .agg(dni_unicos=("DNI", "nunique"), registros=("DNI", "size"))
+        .agg(DNI_UNICOS=("DNI", "nunique"), Registros=("DNI", "size"))
         .merge(coords, on="PROVINCIA", how="left")
         .dropna(subset=["lat", "lon"])
     )
 
-    fig_map = px.density_map(
-        grouped,
-        lat="lat",
-        lon="lon",
-        z="dni_unicos",
-        radius=30,
-        hover_name="PROVINCIA",
-        hover_data={"dni_unicos": True, "registros": True, "lat": False, "lon": False},
-        zoom=4.2,
-        center={"lat": -9.19, "lon": -75.0152},
-        map_style="carto-positron",
-        height=450,
-    )
-    fig_map.add_trace(
-        go.Scattermap(
-            lat=grouped["lat"],
-            lon=grouped["lon"],
-            mode="markers",
-            marker={"size": grouped["dni_unicos"].clip(lower=6) / 6, "color": "#1f77b4", "opacity": 0.5},
-            text=grouped["PROVINCIA"],
-            customdata=grouped[["PROVINCIA"]],
-            hovertemplate="Provincia: %{text}<br>DNI únicos: %{marker.size:.0f}<extra></extra>",
-            name="Provincias",
-        )
-    )
-
-    selected_points = plotly_events(fig_map, click_event=True, select_event=False, override_height=460)
-    selected_province = None
-    if selected_points and "pointNumber" in selected_points[0]:
-        idx = selected_points[0]["pointNumber"]
-        if idx < len(grouped):
-            selected_province = grouped.iloc[idx]["PROVINCIA"]
-
-    st.caption(
-        "Tip: haz clic sobre el mapa para filtrar por provincia. "
-        f"Provincia seleccionada: **{selected_province or 'Ninguna'}**"
-    )
-
-    filtered = df if not selected_province else df[df["PROVINCIA"] == selected_province]
-
-    st.subheader("Mapa de calor Provincia vs Unidad")
-    hm = (
-        filtered.groupby(["PROVINCIA", "UNIDAD"], as_index=False)["DNI"]
-        .nunique()
-        .rename(columns={"DNI": "DNI_UNICOS"})
-    )
-    if hm.empty:
-        st.info("No hay datos para el filtro actual.")
-        return filtered
-
-    pivot = hm.pivot(index="PROVINCIA", columns="UNIDAD", values="DNI_UNICOS").fillna(0)
-    fig_hm = px.imshow(
-        pivot,
-        labels={"x": "Unidad", "y": "Provincia", "color": "DNI únicos"},
-        aspect="auto",
-        color_continuous_scale="Blues",
-        height=420,
-    )
-    heat_click = plotly_events(fig_hm, click_event=True, select_event=False, override_height=430)
-    if heat_click:
-        y_idx = heat_click[0].get("y")
-        x_idx = heat_click[0].get("x")
-        if isinstance(y_idx, (int, float)) and isinstance(x_idx, (int, float)):
-            prov = pivot.index[int(y_idx)]
-            uni = pivot.columns[int(x_idx)]
-            st.caption(f"Filtro adicional aplicado desde mapa de calor: **{prov} / {uni}**")
-            filtered = filtered[(filtered["PROVINCIA"] == prov) & (filtered["UNIDAD"] == uni)]
-
-    return filtered
-
-
-def executive_tables(df: pd.DataFrame) -> None:
-    st.subheader("Tablas ejecutivas")
-    col1, col2 = st.columns(2)
-
     with col1:
-        t1 = (
-            df.groupby("CLIENTE", as_index=False)["DNI"]
-            .nunique()
-            .rename(columns={"DNI": "DNI_UNICOS"})
-            .sort_values("DNI_UNICOS", ascending=False)
-        )
-        st.markdown("**DNI únicos por cliente**")
-        st.dataframe(t1, use_container_width=True, hide_index=True)
+        st.markdown('<div class="chart-card">', unsafe_allow_html=True)
+        st.markdown('<p class="section-header">Mapa geográfico – Perú</p>', unsafe_allow_html=True)
+        if grouped.empty:
+            st.info("Sin coordenadas disponibles para las provincias actuales.")
+        else:
+            max_v = grouped["DNI_UNICOS"].max()
+            fig_map = go.Figure(go.Scattermapbox(
+                lat=grouped["lat"],
+                lon=grouped["lon"],
+                mode="markers",
+                marker=dict(
+                    size=grouped["DNI_UNICOS"].apply(
+                        lambda x: max(8, min(45, (x / max_v) * 50)) if max_v > 0 else 8
+                    ),
+                    color=grouped["DNI_UNICOS"],
+                    colorscale=[[0, "#C7D2FE"], [0.5, "#6366F1"], [1, "#312E81"]],
+                    showscale=True,
+                    colorbar=dict(title="DNI<br>únicos", thickness=12, len=0.6, x=1.01),
+                    opacity=0.85,
+                    sizemode="diameter",
+                ),
+                text=grouped["PROVINCIA"],
+                customdata=grouped[["PROVINCIA", "DNI_UNICOS", "Registros"]].values,
+                hovertemplate=(
+                    "<b>%{customdata[0]}</b><br>"
+                    "DNI únicos: %{customdata[1]:,}<br>"
+                    "Registros: %{customdata[2]:,}<extra></extra>"
+                ),
+            ))
+            fig_map.update_layout(
+                mapbox=dict(style="carto-positron",
+                            center={"lat": -9.5, "lon": -75.0}, zoom=4.3),
+                height=450,
+                margin=dict(l=0, r=0, t=0, b=0),
+                paper_bgcolor="white",
+            )
+            st.plotly_chart(fig_map, use_container_width=True, config={"displayModeBar": False})
+        st.markdown('</div>', unsafe_allow_html=True)
 
     with col2:
-        t2 = (
-            df.groupby(["PROVINCIA", "UNIDAD"], as_index=False)["DNI"]
-            .nunique()
-            .rename(columns={"DNI": "DNI_UNICOS"})
-            .sort_values("DNI_UNICOS", ascending=False)
-            .head(30)
-        )
-        st.markdown("**Top Provincia / Unidad**")
-        st.dataframe(t2, use_container_width=True, hide_index=True)
+        st.markdown('<div class="chart-card">', unsafe_allow_html=True)
+        st.markdown('<p class="section-header">Provincia × Unidad (heat map)</p>', unsafe_allow_html=True)
+        hm = (df.groupby(["PROVINCIA", "UNIDAD"])["DNI"].nunique()
+              .reset_index().rename(columns={"DNI": "N"}))
+        top_p = hm.groupby("PROVINCIA")["N"].sum().nlargest(15).index
+        top_u = hm.groupby("UNIDAD")["N"].sum().nlargest(8).index
+        hm = hm[hm["PROVINCIA"].isin(top_p) & hm["UNIDAD"].isin(top_u)]
+        if hm.empty:
+            st.info("Sin datos.")
+        else:
+            pivot = hm.pivot(index="PROVINCIA", columns="UNIDAD", values="N").fillna(0)
+            fig_hm = px.imshow(
+                pivot,
+                labels=dict(x="Unidad", y="Provincia", color="DNI únicos"),
+                aspect="auto",
+                color_continuous_scale=["#F0F4FF", "#4F46E5"],
+                text_auto=True,
+            )
+            fig_hm.update_traces(textfont_size=10)
+            fig_hm.update_layout(
+                height=450, margin=dict(l=0, r=0, t=0, b=0),
+                paper_bgcolor="white", coloraxis_showscale=False,
+                xaxis=dict(tickfont_size=10, title=""),
+                yaxis=dict(tickfont_size=10, title=""),
+            )
+            st.plotly_chart(fig_hm, use_container_width=True, config={"displayModeBar": False})
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    # Top provinces table
+    st.markdown('<p class="section-header">Top 20 Provincias</p>', unsafe_allow_html=True)
+    top_prov = (df.groupby("PROVINCIA")["DNI"].nunique()
+                .sort_values(ascending=False).head(20).reset_index())
+    top_prov.columns = ["Provincia", "DNI únicos"]
+    st.dataframe(top_prov, use_container_width=True, hide_index=True, height=300)
 
 
-def detail_table(df: pd.DataFrame) -> None:
-    st.subheader("Detalle filtrado")
-    cols = [
-        "DNI",
-        "APELLIDOS Y NOMBRES",
-        "CLIENTE",
-        "UNIDAD",
-        "CARGO",
-        "PROVINCIA",
-        "DISTRITO",
-        "FECHA DE INGRESO",
-        "FECHA DE CESE",
-    ]
-    st.dataframe(df[cols].sort_values(["PROVINCIA", "UNIDAD"]), use_container_width=True, hide_index=True)
+# ── Detail tab ────────────────────────────────────────────────────────────────
+def tab_detail(df: pd.DataFrame) -> None:
+    st.markdown('<p class="section-header">Detalle de registros</p>', unsafe_allow_html=True)
+    cols_available = [c for c in [
+        "DNI", "APELLIDOS Y NOMBRES", "CLIENTE", "UNIDAD", "CARGO",
+        "PROVINCIA", "DISTRITO", "PLANILLA", "REGIMEN PLANILLA",
+        "FECHA DE INGRESO", "FECHA DE CESE",
+    ] if c in df.columns]
+
+    col_search, col_info = st.columns([2, 1])
+    with col_search:
+        search = st.text_input("🔍 Buscar por nombre o DNI", placeholder="Escribe para filtrar...",
+                                label_visibility="collapsed")
+    with col_info:
+        st.caption(f"Mostrando {len(df):,} registros")
+
+    display = df[cols_available].copy()
+    if search:
+        mask = display.apply(
+            lambda col: col.astype(str).str.upper().str.contains(search.upper(), na=False)
+        ).any(axis=1)
+        display = display[mask]
+
+    st.dataframe(display.sort_values(["PROVINCIA", "CLIENTE"]),
+                 use_container_width=True, hide_index=True, height=500)
 
 
+# ── Main ──────────────────────────────────────────────────────────────────────
 def main() -> None:
-    st.title("📈 Dashboard Ejecutivo - Gestión de Personal")
     st.markdown(
-        "Visual interactivo tipo BI con filtros por fecha de cese, provincia y unidad. "
-        "Incluye normalización básica de datos para mejorar consistencia geográfica."
+        '<div class="dashboard-title">📊 Dashboard Ejecutivo — Gestión de Personal</div>'
+        '<div class="dashboard-subtitle">'
+        'Análisis interactivo · Filtros en cascada · Perú'
+        '</div>',
+        unsafe_allow_html=True,
     )
 
-    df = load_data(DATA_FILE)
-    coords = build_or_load_coordinates(tuple(sorted(df["PROVINCIA"].dropna().unique())))
+    if not DATA_FILE.exists():
+        st.error(
+            f"No se encontró **{DATA_FILE}**. "
+            "Coloca el archivo Excel en la misma carpeta que `app.py` y vuelve a ejecutar."
+        )
+        st.stop()
 
-    filtered = apply_filters(df)
+    with st.spinner("Cargando datos..."):
+        df = load_data(DATA_FILE)
+
+    with st.spinner("Preparando mapa..."):
+        coords = get_coordinates(tuple(sorted(df["PROVINCIA"].dropna().unique())))
+
+    filtered, active = apply_filters(df)
+
+    # Active filter badges
+    badges = [
+        f'<span class="filter-badge">{v}</span>'
+        for vals in active.values() for v in vals
+    ]
+    if badges:
+        st.markdown("**Filtros activos:** " + " ".join(badges), unsafe_allow_html=True)
+
     kpi_cards(filtered)
 
-    filtered_after_maps = map_and_heat(filtered, coords)
-    executive_tables(filtered_after_maps)
-    detail_table(filtered_after_maps)
+    tab1, tab2, tab3 = st.tabs(["📈  Análisis", "🗺️  Geografía", "📋  Detalle"])
 
-    with st.expander("Calidad y normalización aplicada"):
-        st.markdown("**Correcciones de provincia**")
-        st.json(PROVINCE_CORRECTIONS, expanded=False)
-        st.markdown("**Correcciones de distrito**")
-        st.json(DISTRICT_CORRECTIONS, expanded=False)
+    with tab1:
+        tab_analysis(filtered)
+    with tab2:
+        tab_geography(filtered, coords)
+    with tab3:
+        tab_detail(filtered)
+
+    st.markdown(
+        f'<div style="font-size:0.72rem; color:#94A3B8; text-align:right; margin-top:1rem;">'
+        f'Total cargados: <b>{len(df):,}</b> · Filtrados: <b>{len(filtered):,}</b>'
+        f'</div>',
+        unsafe_allow_html=True,
+    )
 
 
 if __name__ == "__main__":
