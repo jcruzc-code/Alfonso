@@ -1,13 +1,9 @@
-import json
 import unicodedata
 from pathlib import Path
 
-import numpy as np
 import pandas as pd
 import plotly.express as px
-import plotly.graph_objects as go
 import streamlit as st
-from geopy.geocoders import Nominatim
 from streamlit_plotly_events import plotly_events
 
 st.set_page_config(
@@ -82,54 +78,25 @@ def load_data(path: Path) -> pd.DataFrame:
 
 
 @st.cache_data(show_spinner=False)
-def build_or_load_coordinates(provinces: tuple[str, ...]) -> pd.DataFrame:
-    if COORDS_CACHE.exists():
-        coords = pd.read_csv(COORDS_CACHE)
-    else:
-        geolocator = Nominatim(user_agent="dashboard_streamlit_provincias")
-        rows = []
-        for prov in provinces:
-            if prov == "S/I":
-                continue
-            query = f"{prov}, Peru"
-            lat, lon = np.nan, np.nan
-            try:
-                location = geolocator.geocode(query, timeout=10)
-                if location:
-                    lat, lon = location.latitude, location.longitude
-            except Exception:
-                pass
-            rows.append({"PROVINCIA": prov, "lat": lat, "lon": lon})
-        coords = pd.DataFrame(rows)
-        coords.to_csv(COORDS_CACHE, index=False)
+def load_coordinates(path: Path) -> pd.DataFrame:
+    if not path.exists():
+        return pd.DataFrame(columns=["PROVINCIA", "lat", "lon"])
 
-    # Coordenadas de respaldo para provincias frecuentes
-    backup_coords = {
-        "LIMA": (-12.0464, -77.0428),
-        "CALLAO": (-12.0595, -77.1181),
-        "AREQUIPA": (-16.409, -71.5375),
-        "TRUJILLO": (-8.111, -79.0288),
-        "PIURA": (-5.1945, -80.6328),
-        "CUSCO": (-13.5319, -71.9675),
-        "HUANCAYO": (-12.0651, -75.2049),
-        "CHICLAYO": (-6.7714, -79.8409),
-        "ICA": (-14.0678, -75.7286),
-        "TACNA": (-18.0066, -70.2463),
-    }
-    for prov, (lat, lon) in backup_coords.items():
-        mask = coords["PROVINCIA"].eq(prov) & (coords["lat"].isna() | coords["lon"].isna())
-        coords.loc[mask, ["lat", "lon"]] = [lat, lon]
-
-    return coords
+    coords = pd.read_csv(path)
+    coords["PROVINCIA"] = coords["PROVINCIA"].map(normalize_text)
+    coords["lat"] = pd.to_numeric(coords["lat"], errors="coerce")
+    coords["lon"] = pd.to_numeric(coords["lon"], errors="coerce")
+    return coords.dropna(subset=["lat", "lon"]).drop_duplicates("PROVINCIA")
 
 
 def apply_filters(df: pd.DataFrame) -> pd.DataFrame:
     st.sidebar.header("Filtros")
 
-    min_date = df["FECHA DE CESE"].min()
-    max_date = df["FECHA DE CESE"].max()
-
+    min_date = df["FECHA DE CESE"].dropna().min()
+    max_date = df["FECHA DE CESE"].dropna().max()
     include_active = st.sidebar.toggle("Incluir activos (sin fecha de cese)", value=True)
+
+    base = df.copy()
     if pd.notna(min_date) and pd.notna(max_date):
         date_range = st.sidebar.date_input(
             "Fecha cese (rango)",
@@ -137,23 +104,27 @@ def apply_filters(df: pd.DataFrame) -> pd.DataFrame:
             min_value=min_date.date(),
             max_value=max_date.date(),
         )
-    else:
-        date_range = ()
-
-    cliente = st.sidebar.multiselect("Cliente", sorted(df["CLIENTE"].dropna().unique()))
-    unidad = st.sidebar.multiselect("Unidad", sorted(df["UNIDAD"].dropna().unique()))
-    cargo = st.sidebar.multiselect("Cargo", sorted(df["CARGO"].dropna().unique()))
-
-    filtered = df.copy()
-    if len(date_range) == 2:
-        start_date, end_date = pd.to_datetime(date_range[0]), pd.to_datetime(date_range[1])
-        mask_dates = filtered["FECHA DE CESE"].between(start_date, end_date, inclusive="both")
-        if include_active:
-            mask_dates = mask_dates | filtered["FECHA DE CESE"].isna()
-        filtered = filtered[mask_dates]
+        if len(date_range) == 2:
+            start_date, end_date = pd.to_datetime(date_range[0]), pd.to_datetime(date_range[1])
+            mask_dates = base["FECHA DE CESE"].between(start_date, end_date, inclusive="both")
+            if include_active:
+                mask_dates = mask_dates | base["FECHA DE CESE"].isna()
+            base = base[mask_dates]
     elif not include_active:
-        filtered = filtered[filtered["FECHA DE CESE"].notna()]
+        base = base[base["FECHA DE CESE"].notna()]
 
+    cliente_options = sorted(base["CLIENTE"].dropna().unique())
+    cliente = st.sidebar.multiselect("Cliente", cliente_options)
+
+    unit_source = base[base["CLIENTE"].isin(cliente)] if cliente else base
+    unidad_options = sorted(unit_source["UNIDAD"].dropna().unique())
+    unidad = st.sidebar.multiselect("Unidad", unidad_options)
+
+    cargo_source = unit_source[unit_source["UNIDAD"].isin(unidad)] if unidad else unit_source
+    cargo_options = sorted(cargo_source["CARGO"].dropna().unique())
+    cargo = st.sidebar.multiselect("Cargo", cargo_options)
+
+    filtered = base.copy()
     if cliente:
         filtered = filtered[filtered["CLIENTE"].isin(cliente)]
     if unidad:
@@ -178,7 +149,8 @@ def kpi_cards(df: pd.DataFrame) -> None:
 
 
 def map_and_heat(df: pd.DataFrame, coords: pd.DataFrame) -> pd.DataFrame:
-    st.subheader("Mapa interactivo por provincia")
+    st.subheader("Mapa geográfico por provincia")
+
     grouped = (
         df.groupby("PROVINCIA", as_index=False)
         .agg(dni_unicos=("DNI", "nunique"), registros=("DNI", "size"))
@@ -186,33 +158,34 @@ def map_and_heat(df: pd.DataFrame, coords: pd.DataFrame) -> pd.DataFrame:
         .dropna(subset=["lat", "lon"])
     )
 
-    fig_map = px.density_map(
+    if grouped.empty:
+        st.warning("No hay coordenadas disponibles para el filtro actual.")
+        return df
+
+    fig_map = px.scatter_geo(
         grouped,
         lat="lat",
         lon="lon",
-        z="dni_unicos",
-        radius=30,
+        size="dni_unicos",
+        color="dni_unicos",
         hover_name="PROVINCIA",
-        hover_data={"dni_unicos": True, "registros": True, "lat": False, "lon": False},
-        zoom=4.2,
+        hover_data={"registros": True, "lat": False, "lon": False},
+        projection="natural earth",
+        color_continuous_scale="Blues",
+        height=500,
+    )
+    fig_map.update_geos(
+        showcountries=True,
+        countrycolor="#9CA3AF",
+        showland=True,
+        landcolor="#F8FAFC",
         center={"lat": -9.19, "lon": -75.0152},
-        map_style="carto-positron",
-        height=450,
+        lataxis_range=[-19, 1],
+        lonaxis_range=[-82, -67],
     )
-    fig_map.add_trace(
-        go.Scattermap(
-            lat=grouped["lat"],
-            lon=grouped["lon"],
-            mode="markers",
-            marker={"size": grouped["dni_unicos"].clip(lower=6) / 6, "color": "#1f77b4", "opacity": 0.5},
-            text=grouped["PROVINCIA"],
-            customdata=grouped[["PROVINCIA"]],
-            hovertemplate="Provincia: %{text}<br>DNI únicos: %{marker.size:.0f}<extra></extra>",
-            name="Provincias",
-        )
-    )
+    fig_map.update_layout(margin={"l": 0, "r": 0, "t": 10, "b": 0})
 
-    selected_points = plotly_events(fig_map, click_event=True, select_event=False, override_height=460)
+    selected_points = plotly_events(fig_map, click_event=True, select_event=False, override_height=500)
     selected_province = None
     if selected_points and "pointNumber" in selected_points[0]:
         idx = selected_points[0]["pointNumber"]
@@ -220,7 +193,7 @@ def map_and_heat(df: pd.DataFrame, coords: pd.DataFrame) -> pd.DataFrame:
             selected_province = grouped.iloc[idx]["PROVINCIA"]
 
     st.caption(
-        "Tip: haz clic sobre el mapa para filtrar por provincia. "
+        "Haz clic sobre una provincia para aplicar filtro en el resto del dashboard. "
         f"Provincia seleccionada: **{selected_province or 'Ninguna'}**"
     )
 
@@ -299,15 +272,43 @@ def detail_table(df: pd.DataFrame) -> None:
     st.dataframe(df[cols].sort_values(["PROVINCIA", "UNIDAD"]), use_container_width=True, hide_index=True)
 
 
+def apply_light_theme_styles() -> None:
+    st.markdown(
+        """
+        <style>
+        .stApp {
+            background-color: #f5f7fb;
+            color: #1f2937;
+        }
+        [data-testid="stMetricValue"] {
+            color: #0f172a;
+        }
+        [data-testid="stSidebar"] {
+            background-color: #ffffff;
+            border-right: 1px solid #e5e7eb;
+        }
+        .stDataFrame, .stPlotlyChart {
+            background-color: #ffffff;
+            border-radius: 10px;
+            padding: 4px;
+            border: 1px solid #e5e7eb;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
 def main() -> None:
+    apply_light_theme_styles()
     st.title("📈 Dashboard Ejecutivo - Gestión de Personal")
     st.markdown(
-        "Visual interactivo tipo BI con filtros por fecha de cese, provincia y unidad. "
-        "Incluye normalización básica de datos para mejorar consistencia geográfica."
+        "Visual interactivo tipo BI con filtros conectados entre Cliente, Unidad y Cargo. "
+        "Incluye mapa geográfico por provincia y análisis operativo."
     )
 
     df = load_data(DATA_FILE)
-    coords = build_or_load_coordinates(tuple(sorted(df["PROVINCIA"].dropna().unique())))
+    coords = load_coordinates(COORDS_CACHE)
 
     filtered = apply_filters(df)
     kpi_cards(filtered)
