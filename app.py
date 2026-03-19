@@ -209,41 +209,41 @@ st.markdown(
         outline: 3px solid #A5B4FC !important;
         outline-offset: 1px !important;
     }
-    [data-testid="stSegmentedControl"],
-    [data-testid="stSegmentedControl"] > div,
-    [data-testid="stSegmentedControl"] [role="radiogroup"] {
-        background: #FFFFFF !important;
-        border: 1px solid #E2E8F0 !important;
-        border-radius: 12px !important;
-        padding: 0.25rem !important;
-        box-shadow: 0 1px 6px rgba(15, 23, 42, 0.06) !important;
-        margin-bottom: 0.4rem !important;
+    [data-testid="stSegmentedControl"] {
+        margin-bottom: 0.5rem !important;
     }
-    [data-testid="stSegmentedControl"] button,
-    [data-testid="stSegmentedControl"] [role="radio"],
-    [data-baseweb="button-group"] button {
-        border: 1px solid transparent !important;
-        color: #334155 !important;
+    [data-testid="stSegmentedControl"] [data-baseweb="button-group"],
+    [data-testid="stSegmentedControl"] [role="radiogroup"] {
+        gap: 0.5rem !important;
+        background: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
+        padding: 0 !important;
+    }
+    [data-testid="stSegmentedControl"] [data-baseweb="button-group"] > button,
+    [data-testid="stSegmentedControl"] [role="radio"] {
+        border: 1px solid #CBD5E1 !important;
+        color: #1E293B !important;
         background: #FFFFFF !important;
         font-weight: 700 !important;
-        border-radius: 9px !important;
+        border-radius: 12px !important;
         transition: all 0.15s ease !important;
+        box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06) !important;
     }
-    [data-testid="stSegmentedControl"] button:hover,
-    [data-testid="stSegmentedControl"] [role="radio"]:hover,
-    [data-baseweb="button-group"] button:hover {
+    [data-testid="stSegmentedControl"] [data-baseweb="button-group"] > button:hover,
+    [data-testid="stSegmentedControl"] [role="radio"]:hover {
         background: #F8FAFC !important;
-        border-color: #CBD5E1 !important;
+        border-color: #94A3B8 !important;
     }
-    [data-testid="stSegmentedControl"] button[aria-pressed="true"],
-    [data-testid="stSegmentedControl"] [role="radio"][aria-checked="true"],
-    [data-baseweb="button-group"] button[aria-pressed="true"] {
-        background: #4F46E5 !important;
-        border-color: #4338CA !important;
-        color: #FFFFFF !important;
-        box-shadow: 0 2px 10px rgba(79, 70, 229, 0.25) !important;
+    [data-testid="stSegmentedControl"] [data-baseweb="button-group"] > button[aria-pressed="true"],
+    [data-testid="stSegmentedControl"] [role="radio"][aria-checked="true"] {
+        background: #EEF2FF !important;
+        border-color: #4F46E5 !important;
+        color: #3730A3 !important;
+        box-shadow: 0 0 0 1px rgba(79, 70, 229, 0.2), 0 3px 8px rgba(79, 70, 229, 0.18) !important;
     }
-    [data-testid="stSegmentedControl"] button:focus-visible {
+    [data-testid="stSegmentedControl"] [data-baseweb="button-group"] > button:focus-visible,
+    [data-testid="stSegmentedControl"] [role="radio"]:focus-visible {
         outline: 3px solid #A5B4FC !important;
         outline-offset: 1px !important;
     }
