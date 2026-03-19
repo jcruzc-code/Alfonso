@@ -25,8 +25,26 @@ st.markdown(
         font-family: 'DM Sans', sans-serif;
     }
 
+    :root {
+        --text-primary: #1E293B;
+        --text-secondary: #475569;
+        --text-muted: #64748B;
+        --surface: #FFFFFF;
+    }
+
     /* Background */
     .stApp { background: #F4F6FA; }
+
+    /* Force readable text colors in light mode */
+    .stApp, .stApp p, .stApp li, .stApp label, .stApp span,
+    .stMarkdown, .stMarkdown p, .stCaption, .stText {
+        color: var(--text-primary);
+    }
+    section[data-testid="stSidebar"] *,
+    section[data-testid="stSidebar"] .stMarkdown p,
+    section[data-testid="stSidebar"] label {
+        color: var(--text-secondary) !important;
+    }
 
     /* Main block padding */
     .block-container {
@@ -43,7 +61,7 @@ st.markdown(
 
     /* Metric cards */
     div[data-testid="metric-container"] {
-        background: #FFFFFF;
+        background: var(--surface);
         border: 1px solid #E2E8F0;
         border-radius: 12px;
         padding: 1.25rem 1.5rem;
@@ -77,7 +95,7 @@ st.markdown(
 
     /* Chart cards */
     .chart-card {
-        background: #FFFFFF;
+        background: var(--surface);
         border: 1px solid #E2E8F0;
         border-radius: 12px;
         padding: 1.25rem 1.5rem;
@@ -418,11 +436,13 @@ COLORS = ["#4F46E5", "#06B6D4", "#10B981", "#F59E0B", "#EF4444",
 
 def chart_layout(fig, height=300):
     fig.update_layout(
+        template="plotly_white",
         height=height,
         margin=dict(l=0, r=20, t=10, b=0),
         paper_bgcolor="white",
         plot_bgcolor="white",
         font_family="DM Sans",
+        font_color="#1E293B",
     )
     return fig
 
