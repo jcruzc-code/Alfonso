@@ -529,15 +529,18 @@ def kpi_cards(df: pd.DataFrame) -> None:
     activos = int(df["FECHA DE CESE"].isna().sum())
     cesados = int(df["FECHA DE CESE"].notna().sum())
     total = max(len(df), 1)
+    dni_unicos = int(df["DNI"].dropna().nunique())
+    duplicados = max(len(df) - dni_unicos, 0)
     pct_activos = (activos / total) * 100
     pct_cesados = (cesados / total) * 100
-    c1, c2, c3, c4, c5, c6 = st.columns(6)
-    c1.metric("DNI únicos", f"{df['DNI'].dropna().nunique():,}")
+    c1, c2, c3, c4, c5, c6, c7 = st.columns(7)
+    c1.metric("DNI únicos", f"{dni_unicos:,}")
     c2.metric("Registros", f"{len(df):,}")
-    c3.metric("🟢 Activos", f"{activos:,}", delta=f"{pct_activos:.1f}%")
-    c4.metric("🔴 Cesados", f"{cesados:,}", delta=f"-{pct_cesados:.1f}%")
-    c5.metric("Clientes", f"{df['CLIENTE'].nunique():,}")
-    c6.metric("Unidades", f"{df['UNIDAD'].nunique():,}")
+    c3.metric("Duplicados", f"{duplicados:,}")
+    c4.metric("🟢 Activos", f"{activos:,}", delta=f"{pct_activos:.1f}%")
+    c5.metric("🔴 Cesados", f"{cesados:,}", delta=f"-{pct_cesados:.1f}%")
+    c6.metric("Clientes", f"{df['CLIENTE'].nunique():,}")
+    c7.metric("Unidades", f"{df['UNIDAD'].nunique():,}")
 
 
 COLORS = ["#4F46E5", "#06B6D4", "#10B981", "#F59E0B", "#EF4444",
