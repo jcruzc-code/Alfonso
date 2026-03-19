@@ -591,8 +591,6 @@ def tab_analysis(df: pd.DataFrame) -> None:
 
 # ── Geography tab ─────────────────────────────────────────────────────────────
 def tab_geography(df: pd.DataFrame, coords: pd.DataFrame) -> None:
-    col1, col2 = st.columns([1.5, 1])
-
     grouped = (
         df.groupby("PROVINCIA", as_index=False)
         .agg(DNI_UNICOS=("DNI", "nunique"), Registros=("DNI", "size"))
@@ -600,88 +598,60 @@ def tab_geography(df: pd.DataFrame, coords: pd.DataFrame) -> None:
         .dropna(subset=["lat", "lon"])
     )
 
-    with col1:
-        st.markdown('<p class="section-header">Mapa geográfico – Perú</p>', unsafe_allow_html=True)
-        if grouped.empty:
-            st.info("Sin coordenadas disponibles para las provincias actuales.")
-        else:
-            max_v = grouped["DNI_UNICOS"].max()
-            fig_map = go.Figure(go.Scattergeo(
-                lat=grouped["lat"],
-                lon=grouped["lon"],
-                mode="markers",
-                marker=dict(
-                    size=grouped["DNI_UNICOS"].apply(
-                        lambda x: max(
-                            6,
-                            min(
-                                35,
-                                int(math.log1p(x) / math.log1p(max_v) * 30) + 5,
-                            ),
-                        )
-                        if max_v > 0
-                        else 8
-                    ),
-                    color=grouped["DNI_UNICOS"],
-                    colorscale=[[0, "#16A34A"], [0.5, "#FACC15"], [1, "#DC2626"]],
-                    showscale=True,
-                    colorbar=dict(title="DNI<br>únicos", thickness=12, len=0.6, x=1.01),
-                    opacity=0.85,
+    st.markdown('<p class="section-header">Mapa geográfico – Perú</p>', unsafe_allow_html=True)
+    if grouped.empty:
+        st.info("Sin coordenadas disponibles para las provincias actuales.")
+    else:
+        max_v = grouped["DNI_UNICOS"].max()
+        fig_map = go.Figure(go.Scattergeo(
+            lat=grouped["lat"],
+            lon=grouped["lon"],
+            mode="markers",
+            marker=dict(
+                size=grouped["DNI_UNICOS"].apply(
+                    lambda x: max(
+                        6,
+                        min(
+                            35,
+                            int(math.log1p(x) / math.log1p(max_v) * 30) + 5,
+                        ),
+                    )
+                    if max_v > 0
+                    else 8
                 ),
-                text=grouped["PROVINCIA"],
-                customdata=grouped[["PROVINCIA", "DNI_UNICOS", "Registros"]].values,
-                hovertemplate=(
-                    "<b>%{customdata[0]}</b><br>"
-                    "DNI únicos: %{customdata[1]:,}<br>"
-                    "Registros: %{customdata[2]:,}<extra></extra>"
-                ),
-            ))
-            fig_map.update_layout(
-                geo=dict(
-                    scope="south america",
-                    center=dict(lat=-9.5, lon=-75.0),
-                    projection_type="mercator",
-                    lataxis=dict(range=[-19.5, 1.5]),
-                    lonaxis=dict(range=[-82.0, -67.0]),
-                    showcountries=True,
-                    countrycolor="#CBD5E1",
-                    showland=True,
-                    landcolor="#F8FAFC",
-                    showocean=True,
-                    oceancolor="#EFF6FF",
-                ),
-                height=450,
-                margin=dict(l=0, r=0, t=0, b=0),
-                paper_bgcolor="white",
-            )
-            st.plotly_chart(fig_map, use_container_width=True, config={"displayModeBar": False})
-
-    with col2:
-        st.markdown('<p class="section-header">Provincia × Unidad (heat map)</p>', unsafe_allow_html=True)
-        hm = (df.groupby(["PROVINCIA", "UNIDAD"])["DNI"].nunique()
-              .reset_index().rename(columns={"DNI": "N"}))
-        top_p = hm.groupby("PROVINCIA")["N"].sum().nlargest(15).index
-        top_u = hm.groupby("UNIDAD")["N"].sum().nlargest(8).index
-        hm = hm[hm["PROVINCIA"].isin(top_p) & hm["UNIDAD"].isin(top_u)]
-        if hm.empty:
-            st.info("Sin datos.")
-        else:
-            pivot = hm.pivot(index="PROVINCIA", columns="UNIDAD", values="N").fillna(0)
-            fig_hm = px.imshow(
-                pivot,
-                labels=dict(x="Unidad", y="Provincia", color="DNI únicos"),
-                aspect="auto",
-                color_continuous_scale=["#FFFBEB", "#FCD34D", "#F97316", "#DC2626"],
-                text_auto=True,
-            )
-            fig_hm.update_traces(textfont_size=10, textfont_color="#111827")
-            fig_hm.update_layout(
-                height=450, margin=dict(l=0, r=0, t=0, b=0),
-                paper_bgcolor="white", coloraxis_showscale=False,
-                xaxis=dict(tickfont_size=10, title=""),
-                yaxis=dict(tickfont_size=10, title=""),
-            )
-            st.plotly_chart(fig_hm, use_container_width=True, config={"displayModeBar": False})
+                color=grouped["DNI_UNICOS"],
+                colorscale=[[0, "#16A34A"], [0.5, "#FACC15"], [1, "#DC2626"]],
+                showscale=True,
+                colorbar=dict(title="DNI<br>únicos", thickness=12, len=0.6, x=1.01),
+                opacity=0.85,
+            ),
+            text=grouped["PROVINCIA"],
+            customdata=grouped[["PROVINCIA", "DNI_UNICOS", "Registros"]].values,
+            hovertemplate=(
+                "<b>%{customdata[0]}</b><br>"
+                "DNI únicos: %{customdata[1]:,}<br>"
+                "Registros: %{customdata[2]:,}<extra></extra>"
+            ),
+        ))
+        fig_map.update_layout(
+            geo=dict(
+                scope="south america",
+                center=dict(lat=-9.5, lon=-75.0),
+                projection_type="mercator",
+                lataxis=dict(range=[-19.5, 1.5]),
+                lonaxis=dict(range=[-82.0, -67.0]),
+                showcountries=True,
+                countrycolor="#CBD5E1",
+                showland=True,
+                landcolor="#F8FAFC",
+                showocean=True,
+                oceancolor="#EFF6FF",
+            ),
+            height=450,
+            margin=dict(l=0, r=0, t=0, b=0),
+            paper_bgcolor="white",
+        )
+        st.plotly_chart(fig_map, use_container_width=True, config={"displayModeBar": False})
 
     # Top provinces table
     st.markdown('<p class="section-header">Top 20 Provincias</p>', unsafe_allow_html=True)
