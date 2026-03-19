@@ -308,11 +308,12 @@ def load_data(path: Path) -> pd.DataFrame:
     df["DISTRITO"] = df["DISTRITO"].replace(DISTRICT_CORRECTIONS)
     for col in ["FECHA DE INGRESO", "FECHA DE CESE"]:
         df[col] = pd.to_datetime(df[col], errors="coerce")
+    df["FECHA DE CESE NORM"] = df["FECHA DE CESE"].dt.normalize()
     df["DNI"] = pd.to_numeric(df["DNI"], errors="coerce").astype("Int64")
     cat_cols = ["CLIENTE", "UNIDAD", "CARGO", "PLANILLA", "REGIMEN PLANILLA"]
     for col in cat_cols:
         if col in df.columns:
-            df[col] = df[col].fillna("S/I").astype(str).str.strip()
+            df[col] = df[col].fillna("S/I").astype(str).str.strip().astype("category")
     return df
 
 
@@ -324,7 +325,7 @@ def get_coordinates(provinces: tuple) -> pd.DataFrame:
     if COORDS_CACHE.exists():
         try:
             cached = pd.read_csv(COORDS_CACHE)
-            cached_dict = {r["PROVINCIA"]: (r["lat"], r["lon"]) for _, r in cached.iterrows()}
+            cached_dict = cached.set_index("PROVINCIA")[["lat", "lon"]].to_dict("index")
         except Exception:
             cached_dict = {}
 
@@ -334,7 +335,8 @@ def get_coordinates(provinces: tuple) -> pd.DataFrame:
         if prov in PERU_COORDS:
             lat, lon = PERU_COORDS[prov]
         elif prov in cached_dict:
-            lat, lon = cached_dict[prov]
+            lat = cached_dict[prov]["lat"]
+            lon = cached_dict[prov]["lon"]
         else:
             lat, lon = np.nan, np.nan
         rows.append({"PROVINCIA": prov, "lat": lat, "lon": lon})
@@ -362,7 +364,7 @@ def apply_filters(df: pd.DataFrame):
         )
 
         # Cese (estilo Excel: lista desplegable con selección múltiple)
-        cese_dates = sorted(df["FECHA DE CESE"].dropna().dt.normalize().unique())
+        cese_dates = sorted(df["FECHA DE CESE NORM"].dropna().unique())
         cese_labels = [pd.Timestamp(d).strftime("%Y/%m/%d") for d in cese_dates]
         cese_map = dict(zip(cese_labels, cese_dates))
 
@@ -381,12 +383,12 @@ def apply_filters(df: pd.DataFrame):
         st.divider()
 
         # Build base for cascading
-        base = df.copy()
+        base = df
         if estado == "Solo activos":
             base = base[base["FECHA DE CESE"].isna()]
         elif cese_sel:
             selected_dates = pd.to_datetime([cese_map[x] for x in cese_sel])
-            mask = base["FECHA DE CESE"].isna() | base["FECHA DE CESE"].dt.normalize().isin(selected_dates)
+            mask = base["FECHA DE CESE"].isna() | base["FECHA DE CESE NORM"].isin(selected_dates)
             base = base[mask]
 
         # CASCADE 1 – Cliente
@@ -433,7 +435,7 @@ def apply_filters(df: pd.DataFrame):
             st.rerun()
 
     # Apply to base
-    filtered = base.copy()
+    filtered = base
     if cliente_sel:
         filtered = filtered[filtered["CLIENTE"].isin(cliente_sel)]
     if unidad_sel:
@@ -715,9 +717,14 @@ def tab_detail(df: pd.DataFrame) -> None:
 
     display = df[cols_available].copy()
     if search:
-        mask = display.apply(
-            lambda col: col.astype(str).str.upper().str.contains(search.upper(), na=False)
-        ).any(axis=1)
+        searchable_cols = [c for c in ["DNI", "APELLIDOS Y NOMBRES", "CLIENTE", "UNIDAD", "CARGO", "PROVINCIA", "DISTRITO"] if c in display.columns]
+        search_blob = (
+            display[searchable_cols]
+            .astype(str)
+            .agg(" ".join, axis=1)
+            .str.upper()
+        )
+        mask = search_blob.str.contains(search.upper(), na=False, regex=False)
         display = display[mask]
     display = display.sort_values(["PROVINCIA", "CLIENTE"])
 
@@ -726,19 +733,28 @@ def tab_detail(df: pd.DataFrame) -> None:
             return "color: #EF4444; font-weight: 600;"
         return "color: #10B981; font-weight: 600;"
 
-    styled = display.style.map(style_cese, subset=["FECHA DE CESE"])
-
-    st.dataframe(
-        styled,
-        use_container_width=True,
-        hide_index=True,
-        height=500,
-        column_config={
-            "DNI": st.column_config.NumberColumn(format="%d"),
-            "FECHA DE INGRESO": st.column_config.DateColumn(format="DD/MM/YYYY"),
-            "FECHA DE CESE": st.column_config.DateColumn(format="DD/MM/YYYY"),
-        },
-    )
+    table_config = {
+        "DNI": st.column_config.NumberColumn(format="%d"),
+        "FECHA DE INGRESO": st.column_config.DateColumn(format="DD/MM/YYYY"),
+        "FECHA DE CESE": st.column_config.DateColumn(format="DD/MM/YYYY"),
+    }
+    if len(display) <= 5000 and "FECHA DE CESE" in display.columns:
+        styled = display.style.map(style_cese, subset=["FECHA DE CESE"])
+        st.dataframe(
+            styled,
+            use_container_width=True,
+            hide_index=True,
+            height=500,
+            column_config=table_config,
+        )
+    else:
+        st.dataframe(
+            display,
+            use_container_width=True,
+            hide_index=True,
+            height=500,
+            column_config=table_config,
+        )
 
 
 # ── Main ──────────────────────────────────────────────────────────────────────
