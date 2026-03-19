@@ -1,4 +1,5 @@
 import unicodedata
+import math
 from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 
@@ -58,6 +59,23 @@ st.markdown(
         border-right: 1px solid #E2E8F0;
         padding-top: 1rem;
     }
+    section[data-testid="stSidebar"] .sidebar-label {
+        font-size: 0.68rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #64748B !important;
+        margin: 0.75rem 0 0.4rem 0;
+    }
+    div[data-baseweb="select"] > div {
+        background-color: #F8FAFC !important;
+        border: 1px solid #CBD5E1 !important;
+        border-radius: 8px !important;
+        color: #1E293B !important;
+    }
+    div[data-baseweb="select"] input {
+        color: #1E293B !important;
+    }
 
     /* Metric cards */
     div[data-testid="metric-container"] {
@@ -99,6 +117,14 @@ st.markdown(
         border: 1px solid #E2E8F0;
         border-radius: 12px;
         padding: 1.25rem 1.5rem;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+        margin-bottom: 1rem;
+    }
+    div[data-testid="stPlotlyChart"] {
+        background: var(--surface);
+        border: 1px solid #E2E8F0;
+        border-radius: 12px;
+        padding: 0.75rem 1rem;
         box-shadow: 0 1px 4px rgba(0,0,0,0.05);
         margin-bottom: 1rem;
     }
@@ -325,14 +351,14 @@ def apply_filters(df: pd.DataFrame):
         st.markdown("## Filtros")
 
         # Date
-        st.markdown("**Estado**")
+        st.markdown('<div class="sidebar-label">Estado</div>', unsafe_allow_html=True)
         include_active = st.toggle("Incluir activos (sin cese)", value=True)
 
         min_date = df["FECHA DE CESE"].min()
         max_date = df["FECHA DE CESE"].max()
         date_range = ()
         if pd.notna(min_date) and pd.notna(max_date):
-            st.markdown("**Fecha de cese**")
+            st.markdown('<div class="sidebar-label">Fecha de cese</div>', unsafe_allow_html=True)
             date_range = st.date_input(
                 "Rango",
                 value=(min_date.date(), max_date.date()),
@@ -355,7 +381,7 @@ def apply_filters(df: pd.DataFrame):
             base = base[base["FECHA DE CESE"].notna()]
 
         # CASCADE 1 – Cliente
-        st.markdown("**Cliente**")
+        st.markdown('<div class="sidebar-label">Cliente</div>', unsafe_allow_html=True)
         cliente_opts = sorted(base["CLIENTE"].dropna().unique())
         sync_multiselect_state("f_cliente", cliente_opts)
         cliente_sel = st.multiselect(
@@ -365,7 +391,7 @@ def apply_filters(df: pd.DataFrame):
         base_c = base[base["CLIENTE"].isin(cliente_sel)] if cliente_sel else base
 
         # CASCADE 2 – Unidad (depends on Cliente)
-        st.markdown("**Unidad**")
+        st.markdown('<div class="sidebar-label">Unidad</div>', unsafe_allow_html=True)
         unidad_opts = sorted(base_c["UNIDAD"].dropna().unique())
         sync_multiselect_state("f_unidad", unidad_opts)
         unidad_sel = st.multiselect(
@@ -375,7 +401,7 @@ def apply_filters(df: pd.DataFrame):
         base_cu = base_c[base_c["UNIDAD"].isin(unidad_sel)] if unidad_sel else base_c
 
         # CASCADE 3 – Cargo (depends on Cliente + Unidad)
-        st.markdown("**Cargo**")
+        st.markdown('<div class="sidebar-label">Cargo</div>', unsafe_allow_html=True)
         cargo_opts = sorted(base_cu["CARGO"].dropna().unique())
         sync_multiselect_state("f_cargo", cargo_opts)
         cargo_sel = st.multiselect(
@@ -384,7 +410,7 @@ def apply_filters(df: pd.DataFrame):
 
         # CASCADE 4 – Provincia (depends on all above)
         base_cuc = base_cu[base_cu["CARGO"].isin(cargo_sel)] if cargo_sel else base_cu
-        st.markdown("**Provincia**")
+        st.markdown('<div class="sidebar-label">Provincia</div>', unsafe_allow_html=True)
         prov_opts = sorted(base_cuc["PROVINCIA"].dropna().unique())
         sync_multiselect_state("f_provincia", prov_opts)
         prov_sel = st.multiselect(
@@ -421,11 +447,14 @@ def apply_filters(df: pd.DataFrame):
 def kpi_cards(df: pd.DataFrame) -> None:
     activos = int(df["FECHA DE CESE"].isna().sum())
     cesados = int(df["FECHA DE CESE"].notna().sum())
+    total = max(len(df), 1)
+    pct_activos = (activos / total) * 100
+    pct_cesados = (cesados / total) * 100
     c1, c2, c3, c4, c5, c6 = st.columns(6)
     c1.metric("DNI únicos", f"{df['DNI'].dropna().nunique():,}")
     c2.metric("Registros", f"{len(df):,}")
-    c3.metric("Activos", f"{activos:,}")
-    c4.metric("Cesados", f"{cesados:,}")
+    c3.metric("🟢 Activos", f"{activos:,}", delta=f"{pct_activos:.1f}%")
+    c4.metric("🔴 Cesados", f"{cesados:,}", delta=f"-{pct_cesados:.1f}%")
     c5.metric("Clientes", f"{df['CLIENTE'].nunique():,}")
     c6.metric("Unidades", f"{df['UNIDAD'].nunique():,}")
 
@@ -442,8 +471,11 @@ def chart_layout(fig, height=300):
         paper_bgcolor="white",
         plot_bgcolor="white",
         font_family="DM Sans",
-        font_color="#1E293B",
+        font_color="#111827",
+        legend=dict(font=dict(color="#111827")),
     )
+    fig.update_xaxes(tickfont=dict(color="#111827"), title_font=dict(color="#111827"))
+    fig.update_yaxes(tickfont=dict(color="#111827"), title_font=dict(color="#111827"))
     return fig
 
 
@@ -452,56 +484,49 @@ def tab_analysis(df: pd.DataFrame) -> None:
     col1, col2, col3 = st.columns([1.2, 1, 0.8])
 
     with col1:
-        st.markdown('<div class="chart-card">', unsafe_allow_html=True)
         st.markdown('<p class="section-header">Top Clientes · DNI únicos</p>', unsafe_allow_html=True)
         d = (df.groupby("CLIENTE")["DNI"].nunique()
              .sort_values(ascending=False).head(10).reset_index())
         d.columns = ["CLIENTE", "N"]
         fig = px.bar(d, x="N", y="CLIENTE", orientation="h",
                      color="N", color_continuous_scale=["#C7D2FE", "#4F46E5"], text="N")
-        fig.update_traces(textfont_size=11, textposition="outside")
+        fig.update_traces(textfont_size=11, textposition="outside", textfont_color="#1E293B")
         fig = chart_layout(fig)
         fig.update_layout(coloraxis_showscale=False,
                           yaxis=dict(autorange="reversed", tickfont_size=11, title=""),
                           xaxis=dict(title="", showgrid=True, gridcolor="#F1F5F9"),
                           showlegend=False)
         st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
-        st.markdown('</div>', unsafe_allow_html=True)
 
     with col2:
-        st.markdown('<div class="chart-card">', unsafe_allow_html=True)
         st.markdown('<p class="section-header">Distribución por Unidad</p>', unsafe_allow_html=True)
         d2 = (df.groupby("UNIDAD")["DNI"].nunique()
               .sort_values(ascending=False).head(8).reset_index())
         d2.columns = ["UNIDAD", "N"]
         fig2 = px.pie(d2, values="N", names="UNIDAD",
                       color_discrete_sequence=COLORS, hole=0.45)
-        fig2.update_traces(textinfo="percent", textfont_size=11)
+        fig2.update_traces(textinfo="percent", textfont_size=11, textfont_color="#111827")
         fig2 = chart_layout(fig2)
         fig2.update_layout(legend=dict(font_size=10))
         st.plotly_chart(fig2, use_container_width=True, config={"displayModeBar": False})
-        st.markdown('</div>', unsafe_allow_html=True)
 
     with col3:
-        st.markdown('<div class="chart-card">', unsafe_allow_html=True)
         st.markdown('<p class="section-header">Top Cargos</p>', unsafe_allow_html=True)
         d3 = (df.groupby("CARGO")["DNI"].nunique()
               .sort_values(ascending=False).head(8).reset_index())
         d3.columns = ["CARGO", "N"]
         fig3 = px.bar(d3, x="N", y="CARGO", orientation="h",
                       color_discrete_sequence=["#06B6D4"], text="N")
-        fig3.update_traces(textfont_size=11, textposition="outside")
+        fig3.update_traces(textfont_size=11, textposition="outside", textfont_color="#1E293B")
         fig3 = chart_layout(fig3)
         fig3.update_layout(yaxis=dict(autorange="reversed", tickfont_size=10, title=""),
                             xaxis=dict(title="", showgrid=True, gridcolor="#F1F5F9"),
                             showlegend=False)
         st.plotly_chart(fig3, use_container_width=True, config={"displayModeBar": False})
-        st.markdown('</div>', unsafe_allow_html=True)
 
     # Trend row
     col4, col5 = st.columns(2)
     with col4:
-        st.markdown('<div class="chart-card">', unsafe_allow_html=True)
         st.markdown('<p class="section-header">Ingresos vs Ceses por mes</p>', unsafe_allow_html=True)
         ing = (df["FECHA DE INGRESO"].dropna().dt.to_period("M")
                .value_counts().sort_index().rename("Ingresos").reset_index())
@@ -522,24 +547,30 @@ def tab_analysis(df: pd.DataFrame) -> None:
         fig4.update_layout(legend=dict(orientation="h", y=1.1, font_size=11),
                             xaxis=dict(showgrid=False),
                             yaxis=dict(showgrid=True, gridcolor="#F1F5F9"))
+        fig4.update_xaxes(
+            rangeselector=dict(
+                buttons=[
+                    dict(count=1, label="1A", step="year", stepmode="backward"),
+                    dict(count=3, label="3A", step="year", stepmode="backward"),
+                    dict(step="all", label="Todo"),
+                ]
+            )
+        )
         st.plotly_chart(fig4, use_container_width=True, config={"displayModeBar": False})
-        st.markdown('</div>', unsafe_allow_html=True)
 
     with col5:
-        st.markdown('<div class="chart-card">', unsafe_allow_html=True)
         st.markdown('<p class="section-header">Régimen de Planilla</p>', unsafe_allow_html=True)
         if "REGIMEN PLANILLA" in df.columns:
             reg = df["REGIMEN PLANILLA"].value_counts().head(8).reset_index()
             reg.columns = ["REGIMEN", "N"]
             fig5 = px.bar(reg, x="N", y="REGIMEN", orientation="h",
                           color="N", color_continuous_scale=["#BAE6FD", "#0EA5E9"], text="N")
-            fig5.update_traces(textfont_size=11, textposition="outside")
+            fig5.update_traces(textfont_size=11, textposition="outside", textfont_color="#1E293B")
             fig5 = chart_layout(fig5, height=260)
             fig5.update_layout(coloraxis_showscale=False,
                                 yaxis=dict(autorange="reversed", title="", tickfont_size=10),
                                 xaxis=dict(title="", showgrid=True, gridcolor="#F1F5F9"))
             st.plotly_chart(fig5, use_container_width=True, config={"displayModeBar": False})
-        st.markdown('</div>', unsafe_allow_html=True)
 
 
 # ── Geography tab ─────────────────────────────────────────────────────────────
@@ -554,7 +585,6 @@ def tab_geography(df: pd.DataFrame, coords: pd.DataFrame) -> None:
     )
 
     with col1:
-        st.markdown('<div class="chart-card">', unsafe_allow_html=True)
         st.markdown('<p class="section-header">Mapa geográfico – Perú</p>', unsafe_allow_html=True)
         if grouped.empty:
             st.info("Sin coordenadas disponibles para las provincias actuales.")
@@ -566,10 +596,18 @@ def tab_geography(df: pd.DataFrame, coords: pd.DataFrame) -> None:
                 mode="markers",
                 marker=dict(
                     size=grouped["DNI_UNICOS"].apply(
-                        lambda x: max(8, min(45, (x / max_v) * 50)) if max_v > 0 else 8
+                        lambda x: max(
+                            6,
+                            min(
+                                35,
+                                int(math.log1p(x) / math.log1p(max_v) * 30) + 5,
+                            ),
+                        )
+                        if max_v > 0
+                        else 8
                     ),
                     color=grouped["DNI_UNICOS"],
-                    colorscale=[[0, "#C7D2FE"], [0.5, "#6366F1"], [1, "#312E81"]],
+                    colorscale=[[0, "#16A34A"], [0.5, "#FACC15"], [1, "#DC2626"]],
                     showscale=True,
                     colorbar=dict(title="DNI<br>únicos", thickness=12, len=0.6, x=1.01),
                     opacity=0.85,
@@ -601,10 +639,8 @@ def tab_geography(df: pd.DataFrame, coords: pd.DataFrame) -> None:
                 paper_bgcolor="white",
             )
             st.plotly_chart(fig_map, use_container_width=True, config={"displayModeBar": False})
-        st.markdown('</div>', unsafe_allow_html=True)
 
     with col2:
-        st.markdown('<div class="chart-card">', unsafe_allow_html=True)
         st.markdown('<p class="section-header">Provincia × Unidad (heat map)</p>', unsafe_allow_html=True)
         hm = (df.groupby(["PROVINCIA", "UNIDAD"])["DNI"].nunique()
               .reset_index().rename(columns={"DNI": "N"}))
@@ -619,10 +655,10 @@ def tab_geography(df: pd.DataFrame, coords: pd.DataFrame) -> None:
                 pivot,
                 labels=dict(x="Unidad", y="Provincia", color="DNI únicos"),
                 aspect="auto",
-                color_continuous_scale=["#F0F4FF", "#4F46E5"],
+                color_continuous_scale=["#FFFBEB", "#FCD34D", "#F97316", "#DC2626"],
                 text_auto=True,
             )
-            fig_hm.update_traces(textfont_size=10)
+            fig_hm.update_traces(textfont_size=10, textfont_color="#111827")
             fig_hm.update_layout(
                 height=450, margin=dict(l=0, r=0, t=0, b=0),
                 paper_bgcolor="white", coloraxis_showscale=False,
@@ -630,7 +666,6 @@ def tab_geography(df: pd.DataFrame, coords: pd.DataFrame) -> None:
                 yaxis=dict(tickfont_size=10, title=""),
             )
             st.plotly_chart(fig_hm, use_container_width=True, config={"displayModeBar": False})
-        st.markdown('</div>', unsafe_allow_html=True)
 
     # Top provinces table
     st.markdown('<p class="section-header">Top 20 Provincias</p>', unsafe_allow_html=True)
@@ -662,9 +697,26 @@ def tab_detail(df: pd.DataFrame) -> None:
             lambda col: col.astype(str).str.upper().str.contains(search.upper(), na=False)
         ).any(axis=1)
         display = display[mask]
+    display = display.sort_values(["PROVINCIA", "CLIENTE"])
 
-    st.dataframe(display.sort_values(["PROVINCIA", "CLIENTE"]),
-                 use_container_width=True, hide_index=True, height=500)
+    def style_cese(value):
+        if pd.notna(value):
+            return "color: #EF4444; font-weight: 600;"
+        return "color: #10B981; font-weight: 600;"
+
+    styled = display.style.map(style_cese, subset=["FECHA DE CESE"])
+
+    st.dataframe(
+        styled,
+        use_container_width=True,
+        hide_index=True,
+        height=500,
+        column_config={
+            "DNI": st.column_config.NumberColumn(format="%d"),
+            "FECHA DE INGRESO": st.column_config.DateColumn(format="DD/MM/YYYY"),
+            "FECHA DE CESE": st.column_config.DateColumn(format="DD/MM/YYYY"),
+        },
+    )
 
 
 # ── Main ──────────────────────────────────────────────────────────────────────
@@ -704,6 +756,7 @@ def main() -> None:
         st.markdown("**Filtros activos:** " + " ".join(badges), unsafe_allow_html=True)
 
     kpi_cards(filtered)
+    st.divider()
 
     tab1, tab2, tab3 = st.tabs(["📈  Análisis", "🗺️  Geografía", "📋  Detalle"])
 
