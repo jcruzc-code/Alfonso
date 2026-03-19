@@ -471,8 +471,11 @@ def chart_layout(fig, height=300):
         paper_bgcolor="white",
         plot_bgcolor="white",
         font_family="DM Sans",
-        font_color="#1E293B",
+        font_color="#111827",
+        legend=dict(font=dict(color="#111827")),
     )
+    fig.update_xaxes(tickfont=dict(color="#111827"), title_font=dict(color="#111827"))
+    fig.update_yaxes(tickfont=dict(color="#111827"), title_font=dict(color="#111827"))
     return fig
 
 
@@ -502,7 +505,7 @@ def tab_analysis(df: pd.DataFrame) -> None:
         d2.columns = ["UNIDAD", "N"]
         fig2 = px.pie(d2, values="N", names="UNIDAD",
                       color_discrete_sequence=COLORS, hole=0.45)
-        fig2.update_traces(textinfo="percent", textfont_size=11)
+        fig2.update_traces(textinfo="percent", textfont_size=11, textfont_color="#111827")
         fig2 = chart_layout(fig2)
         fig2.update_layout(legend=dict(font_size=10))
         st.plotly_chart(fig2, use_container_width=True, config={"displayModeBar": False})
@@ -604,7 +607,7 @@ def tab_geography(df: pd.DataFrame, coords: pd.DataFrame) -> None:
                         else 8
                     ),
                     color=grouped["DNI_UNICOS"],
-                    colorscale=[[0, "#C7D2FE"], [0.5, "#6366F1"], [1, "#312E81"]],
+                    colorscale=[[0, "#16A34A"], [0.5, "#FACC15"], [1, "#DC2626"]],
                     showscale=True,
                     colorbar=dict(title="DNI<br>únicos", thickness=12, len=0.6, x=1.01),
                     opacity=0.85,
@@ -655,7 +658,7 @@ def tab_geography(df: pd.DataFrame, coords: pd.DataFrame) -> None:
                 color_continuous_scale=["#FFFBEB", "#FCD34D", "#F97316", "#DC2626"],
                 text_auto=True,
             )
-            fig_hm.update_traces(textfont_size=10)
+            fig_hm.update_traces(textfont_size=10, textfont_color="#111827")
             fig_hm.update_layout(
                 height=450, margin=dict(l=0, r=0, t=0, b=0),
                 paper_bgcolor="white", coloraxis_showscale=False,
