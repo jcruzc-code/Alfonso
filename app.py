@@ -169,21 +169,29 @@ st.markdown(
         font-weight: 600;
         letter-spacing: 0.02em;
         padding: 0.45rem 1.15rem;
-        color: #475569;
+        color: #1E293B !important;
         background: #FFFFFF !important;
         border: 1px solid #CBD5E1 !important;
         border-radius: 12px;
         transition: all 0.15s ease;
+        box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
     }
     .stTabs [data-baseweb="tab"]:hover {
         background: #F8FAFC !important;
         border-color: #94A3B8 !important;
     }
     .stTabs [aria-selected="true"] {
-        color: #3730A3 !important;
-        border: 1px solid #4F46E5 !important;
-        background: #EEF2FF !important;
-        box-shadow: 0 0 0 1px rgba(79, 70, 229, 0.18), 0 2px 8px rgba(79, 70, 229, 0.2);
+        color: #14532D !important;
+        border: 1px solid #22C55E !important;
+        background: linear-gradient(
+            135deg,
+            rgba(187, 247, 208, 0.95) 0%,
+            rgba(220, 252, 231, 0.9) 100%
+        ) !important;
+        box-shadow:
+            0 0 0 1px rgba(34, 197, 94, 0.25),
+            0 6px 18px rgba(34, 197, 94, 0.28),
+            0 0 18px rgba(134, 239, 172, 0.45) !important;
     }
 
     /* Buttons and segmented control - better contrast + feedback */
