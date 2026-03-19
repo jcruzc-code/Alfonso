@@ -352,35 +352,42 @@ def apply_filters(df: pd.DataFrame):
     with st.sidebar:
         st.markdown("## Filtros")
 
-        # Date
+        # Estado
         st.markdown('<div class="sidebar-label">Estado</div>', unsafe_allow_html=True)
-        include_active = st.toggle("Incluir activos (sin cese)", value=True)
+        estado = st.radio(
+            "Estado",
+            options=["Solo activos", "Activos y ceses"],
+            horizontal=True,
+            label_visibility="collapsed",
+        )
 
-        min_date = df["FECHA DE CESE"].min()
-        max_date = df["FECHA DE CESE"].max()
-        date_range = ()
-        if pd.notna(min_date) and pd.notna(max_date):
+        # Cese (estilo Excel: lista desplegable con selección múltiple)
+        cese_dates = sorted(df["FECHA DE CESE"].dropna().dt.normalize().unique())
+        cese_labels = [pd.Timestamp(d).strftime("%Y/%m/%d") for d in cese_dates]
+        cese_map = dict(zip(cese_labels, cese_dates))
+
+        cese_sel = []
+        if estado == "Activos y ceses" and cese_labels:
             st.markdown('<div class="sidebar-label">Fecha de cese</div>', unsafe_allow_html=True)
-            date_range = st.date_input(
-                "Rango",
-                value=(min_date.date(), max_date.date()),
-                min_value=min_date.date(),
-                max_value=max_date.date(),
+            sync_multiselect_state("f_cese", cese_labels)
+            cese_sel = st.multiselect(
+                "Fecha de cese",
+                cese_labels,
+                key="f_cese",
+                placeholder="Selecciona una o varias fechas",
                 label_visibility="collapsed",
             )
 
         st.divider()
 
-        # Build base (date-filtered) for cascading
+        # Build base for cascading
         base = df.copy()
-        if len(date_range) == 2:
-            s, e = pd.to_datetime(date_range[0]), pd.to_datetime(date_range[1])
-            mask = base["FECHA DE CESE"].between(s, e)
-            if include_active:
-                mask = mask | base["FECHA DE CESE"].isna()
+        if estado == "Solo activos":
+            base = base[base["FECHA DE CESE"].isna()]
+        elif cese_sel:
+            selected_dates = pd.to_datetime([cese_map[x] for x in cese_sel])
+            mask = base["FECHA DE CESE"].isna() | base["FECHA DE CESE"].dt.normalize().isin(selected_dates)
             base = base[mask]
-        elif not include_active:
-            base = base[base["FECHA DE CESE"].notna()]
 
         # CASCADE 1 – Cliente
         st.markdown('<div class="sidebar-label">Cliente</div>', unsafe_allow_html=True)
@@ -421,7 +428,7 @@ def apply_filters(df: pd.DataFrame):
 
         st.divider()
         if st.button("🔄 Limpiar filtros", use_container_width=True):
-            for key in ["f_cliente", "f_unidad", "f_cargo", "f_provincia"]:
+            for key in ["f_cese", "f_cliente", "f_unidad", "f_cargo", "f_provincia"]:
                 st.session_state[key] = []
             st.rerun()
 
@@ -437,6 +444,8 @@ def apply_filters(df: pd.DataFrame):
         filtered = filtered[filtered["PROVINCIA"].isin(prov_sel)]
 
     active = {
+        "estado": [estado],
+        "cese": cese_sel,
         "cliente": cliente_sel,
         "unidad": unidad_sel,
         "cargo": cargo_sel,
