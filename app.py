@@ -1,13 +1,15 @@
 import unicodedata
-import math
 from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 
+import folium
 import numpy as np
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
+from branca.colormap import LinearColormap
+from streamlit_folium import st_folium
 
 # ── Page config ──────────────────────────────────────────────────────────────
 st.set_page_config(
@@ -626,86 +628,57 @@ def tab_geography(df: pd.DataFrame, coords: pd.DataFrame) -> None:
         if grouped.empty:
             st.info("Sin coordenadas disponibles para las provincias actuales.")
         else:
-            max_v = grouped["DNI_UNICOS"].max()
+            max_v = float(grouped["DNI_UNICOS"].max())
             color_metric = np.log1p(grouped["DNI_UNICOS"])
             cmin = float(color_metric.min())
             cmax = float(color_metric.max())
-            q95 = float(color_metric.quantile(0.95)) if len(color_metric) > 1 else cmax
-            color_cap = min(cmax, q95) if q95 > cmin else cmax
+            if cmax == cmin:
+                cmax = cmin + 1.0
 
-            ticks_raw = np.array([1, 5, 10, 25, 50, 100, 250, 500, 1000, 2500, 5000, 10000], dtype=float)
-            ticks_raw = ticks_raw[ticks_raw <= max_v] if max_v > 0 else np.array([1], dtype=float)
-            if ticks_raw.size == 0:
-                ticks_raw = np.array([max_v], dtype=float)
-            if max_v > 0 and ticks_raw[-1] != max_v:
-                ticks_raw = np.append(ticks_raw, float(max_v))
-            ticks_raw = np.unique(ticks_raw)
-            if color_cap < cmax:
-                ticks_raw = ticks_raw[ticks_raw <= np.expm1(color_cap)]
-                ticks_raw = np.append(ticks_raw, np.expm1(color_cap))
-            tickvals = np.log1p(ticks_raw)
-            ticktext = [f"{int(v):,}" for v in ticks_raw]
-            if color_cap < cmax and ticktext:
-                ticktext[-1] = f"≥{ticktext[-1]}"
-
-            fig_map = go.Figure(go.Scattergeo(
-                lat=grouped["lat"],
-                lon=grouped["lon"],
-                mode="markers",
-                marker=dict(
-                    size=grouped["DNI_UNICOS"].apply(
-                        lambda x: max(
-                            6,
-                            min(
-                                35,
-                                int(math.log1p(x) / math.log1p(max_v) * 30) + 5,
-                            ),
-                        )
-                        if max_v > 0
-                        else 8
-                    ),
-                    color=color_metric,
-                    colorscale=[[0, "#16A34A"], [0.5, "#FACC15"], [1, "#DC2626"]],
-                    cmin=cmin,
-                    cmax=color_cap if color_cap > cmin else cmax,
-                    showscale=True,
-                    colorbar=dict(
-                        title="DNI<br>únicos",
-                        thickness=12,
-                        len=0.6,
-                        x=1.01,
-                        tickvals=tickvals,
-                        ticktext=ticktext,
-                    ),
-                    opacity=0.85,
-                ),
-                text=grouped["PROVINCIA"],
-                customdata=grouped[["PROVINCIA", "DNI_UNICOS", "Registros"]].values,
-                hovertemplate=(
-                    "<b>%{customdata[0]}</b><br>"
-                    "DNI únicos: %{customdata[1]:,}<br>"
-                    "Registros: %{customdata[2]:,}<extra></extra>"
-                ),
-            ))
-            fig_map.update_layout(
-                geo=dict(
-                    scope="south america",
-                    center=dict(lat=-9.5, lon=-75.0),
-                    projection_type="mercator",
-                    lataxis=dict(range=[-19.5, 1.5]),
-                    lonaxis=dict(range=[-82.0, -67.0]),
-                    showcountries=True,
-                    countrycolor="#CBD5E1",
-                    showland=True,
-                    landcolor="#F8FAFC",
-                    showocean=True,
-                    oceancolor="#EFF6FF",
-                ),
-                height=450,
-                margin=dict(l=0, r=0, t=0, b=0),
-                paper_bgcolor="white",
+            folium_map = folium.Map(
+                location=[-9.5, -75.0],
+                zoom_start=5,
+                tiles="CartoDB positron",
+                control_scale=True,
             )
-            st.plotly_chart(fig_map, use_container_width=True, config={"displayModeBar": False})
+
+            colormap = LinearColormap(
+                colors=["#16A34A", "#FACC15", "#DC2626"],
+                vmin=cmin,
+                vmax=cmax,
+            )
+            colormap.caption = "DNI únicos (escala logarítmica)"
+            colormap.add_to(folium_map)
+
+            for _, row in grouped.iterrows():
+                dni_unicos = int(row["DNI_UNICOS"])
+                radius = 8 if max_v <= 0 else max(6, min(30, 6 + (np.log1p(dni_unicos) / np.log1p(max_v)) * 24))
+                color_value = float(np.log1p(dni_unicos))
+                fill_color = colormap(color_value)
+                popup_html = (
+                    f"<b>{row['PROVINCIA']}</b><br>"
+                    f"DNI únicos: {dni_unicos:,}<br>"
+                    f"Registros: {int(row['Registros']):,}"
+                )
+
+                folium.CircleMarker(
+                    location=[row["lat"], row["lon"]],
+                    radius=radius,
+                    color=fill_color,
+                    fill=True,
+                    fill_color=fill_color,
+                    fill_opacity=0.8,
+                    weight=1,
+                    tooltip=popup_html,
+                    popup=folium.Popup(popup_html, max_width=280),
+                ).add_to(folium_map)
+
+            st_folium(
+                folium_map,
+                use_container_width=True,
+                height=460,
+                returned_objects=[],
+            )
 
     # Top provinces table
     st.markdown('<p class="section-header">Top 20 Provincias</p>', unsafe_allow_html=True)
