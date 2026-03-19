@@ -627,6 +627,27 @@ def tab_geography(df: pd.DataFrame, coords: pd.DataFrame) -> None:
             st.info("Sin coordenadas disponibles para las provincias actuales.")
         else:
             max_v = grouped["DNI_UNICOS"].max()
+            color_metric = np.log1p(grouped["DNI_UNICOS"])
+            cmin = float(color_metric.min())
+            cmax = float(color_metric.max())
+            q95 = float(color_metric.quantile(0.95)) if len(color_metric) > 1 else cmax
+            color_cap = min(cmax, q95) if q95 > cmin else cmax
+
+            ticks_raw = np.array([1, 5, 10, 25, 50, 100, 250, 500, 1000, 2500, 5000, 10000], dtype=float)
+            ticks_raw = ticks_raw[ticks_raw <= max_v] if max_v > 0 else np.array([1], dtype=float)
+            if ticks_raw.size == 0:
+                ticks_raw = np.array([max_v], dtype=float)
+            if max_v > 0 and ticks_raw[-1] != max_v:
+                ticks_raw = np.append(ticks_raw, float(max_v))
+            ticks_raw = np.unique(ticks_raw)
+            if color_cap < cmax:
+                ticks_raw = ticks_raw[ticks_raw <= np.expm1(color_cap)]
+                ticks_raw = np.append(ticks_raw, np.expm1(color_cap))
+            tickvals = np.log1p(ticks_raw)
+            ticktext = [f"{int(v):,}" for v in ticks_raw]
+            if color_cap < cmax and ticktext:
+                ticktext[-1] = f"≥{ticktext[-1]}"
+
             fig_map = go.Figure(go.Scattergeo(
                 lat=grouped["lat"],
                 lon=grouped["lon"],
@@ -643,10 +664,19 @@ def tab_geography(df: pd.DataFrame, coords: pd.DataFrame) -> None:
                         if max_v > 0
                         else 8
                     ),
-                    color=grouped["DNI_UNICOS"],
+                    color=color_metric,
                     colorscale=[[0, "#16A34A"], [0.5, "#FACC15"], [1, "#DC2626"]],
+                    cmin=cmin,
+                    cmax=color_cap if color_cap > cmin else cmax,
                     showscale=True,
-                    colorbar=dict(title="DNI<br>únicos", thickness=12, len=0.6, x=1.01),
+                    colorbar=dict(
+                        title="DNI<br>únicos",
+                        thickness=12,
+                        len=0.6,
+                        x=1.01,
+                        tickvals=tickvals,
+                        ticktext=ticktext,
+                    ),
                     opacity=0.85,
                 ),
                 text=grouped["PROVINCIA"],
