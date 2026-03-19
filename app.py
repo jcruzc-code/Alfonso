@@ -612,7 +612,7 @@ def tab_analysis(df: pd.DataFrame) -> None:
 
 # ── Geography tab ─────────────────────────────────────────────────────────────
 def tab_geography(df: pd.DataFrame, coords: pd.DataFrame) -> None:
-    col1, col2 = st.columns([1.5, 1])
+    col1 = st.container()
 
     grouped = (
         df.groupby("PROVINCIA", as_index=False)
@@ -676,33 +676,6 @@ def tab_geography(df: pd.DataFrame, coords: pd.DataFrame) -> None:
                 paper_bgcolor="white",
             )
             st.plotly_chart(fig_map, use_container_width=True, config={"displayModeBar": False})
-
-    with col2:
-        st.markdown('<p class="section-header">Provincia × Unidad (heat map)</p>', unsafe_allow_html=True)
-        hm = (df.groupby(["PROVINCIA", "UNIDAD"])["DNI"].nunique()
-              .reset_index().rename(columns={"DNI": "N"}))
-        top_p = hm.groupby("PROVINCIA")["N"].sum().nlargest(15).index
-        top_u = hm.groupby("UNIDAD")["N"].sum().nlargest(8).index
-        hm = hm[hm["PROVINCIA"].isin(top_p) & hm["UNIDAD"].isin(top_u)]
-        if hm.empty:
-            st.info("Sin datos.")
-        else:
-            pivot = hm.pivot(index="PROVINCIA", columns="UNIDAD", values="N").fillna(0)
-            fig_hm = px.imshow(
-                pivot,
-                labels=dict(x="Unidad", y="Provincia", color="DNI únicos"),
-                aspect="auto",
-                color_continuous_scale=["#FFFBEB", "#FCD34D", "#F97316", "#DC2626"],
-                text_auto=True,
-            )
-            fig_hm.update_traces(textfont_size=10, textfont_color="#111827")
-            fig_hm.update_layout(
-                height=450, margin=dict(l=0, r=0, t=0, b=0),
-                paper_bgcolor="white", coloraxis_showscale=False,
-                xaxis=dict(tickfont_size=10, title=""),
-                yaxis=dict(tickfont_size=10, title=""),
-            )
-            st.plotly_chart(fig_hm, use_container_width=True, config={"displayModeBar": False})
 
     # Top provinces table
     st.markdown('<p class="section-header">Top 20 Provincias</p>', unsafe_allow_html=True)
