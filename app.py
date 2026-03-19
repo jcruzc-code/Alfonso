@@ -159,21 +159,31 @@ st.markdown(
 
     /* Tabs */
     .stTabs [data-baseweb="tab-list"] {
-        gap: 0;
-        border-bottom: 2px solid #E2E8F0;
+        gap: 0.45rem;
+        border-bottom: none;
         background: transparent;
+        padding: 0.15rem 0 0.25rem 0;
     }
     .stTabs [data-baseweb="tab"] {
-        font-size: 0.8rem;
+        font-size: 0.82rem;
         font-weight: 600;
-        letter-spacing: 0.04em;
-        padding: 0.5rem 1.25rem;
-        color: #94A3B8;
+        letter-spacing: 0.02em;
+        padding: 0.45rem 1.15rem;
+        color: #475569;
+        background: #FFFFFF !important;
+        border: 1px solid #CBD5E1 !important;
+        border-radius: 12px;
+        transition: all 0.15s ease;
+    }
+    .stTabs [data-baseweb="tab"]:hover {
+        background: #F8FAFC !important;
+        border-color: #94A3B8 !important;
     }
     .stTabs [aria-selected="true"] {
-        color: #4F46E5 !important;
-        border-bottom: 2px solid #4F46E5;
-        background: transparent !important;
+        color: #3730A3 !important;
+        border: 1px solid #4F46E5 !important;
+        background: #EEF2FF !important;
+        box-shadow: 0 0 0 1px rgba(79, 70, 229, 0.18), 0 2px 8px rgba(79, 70, 229, 0.2);
     }
 
     /* Buttons and segmented control - better contrast + feedback */
