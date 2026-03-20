@@ -738,37 +738,36 @@ def tab_analysis(df: pd.DataFrame) -> None:
         )
         st.plotly_chart(fig3, use_container_width=True, config={"displayModeBar": False})
 
-    # Trend row
-    st.markdown('<p class="section-header">Ingresos vs Ceses por mes</p>', unsafe_allow_html=True)
-    ing = (df["FECHA DE INGRESO"].dropna().dt.to_period("M")
-           .value_counts().sort_index().rename("Ingresos").reset_index())
-    ing.columns = ["Periodo", "Ingresos"]
-    ing["Periodo"] = ing["Periodo"].dt.to_timestamp()
-    ces = (df["FECHA DE CESE"].dropna().dt.to_period("M")
-           .value_counts().sort_index().rename("Ceses").reset_index())
-    ces.columns = ["Periodo", "Ceses"]
-    ces["Periodo"] = ces["Periodo"].dt.to_timestamp()
-    merged = pd.merge(ing, ces, on="Periodo", how="outer").sort_values("Periodo").fillna(0)
-    fig4 = go.Figure()
-    fig4.add_trace(go.Scatter(x=merged["Periodo"], y=merged["Ingresos"],
-                              name="Ingresos", line=dict(color="#4F46E5", width=2),
-                              fill="tozeroy", fillcolor="rgba(79,70,229,0.08)"))
-    fig4.add_trace(go.Scatter(x=merged["Periodo"], y=merged["Ceses"],
-                              name="Ceses", line=dict(color="#EF4444", width=2, dash="dot")))
-    fig4 = chart_layout(fig4, height=260)
-    fig4.update_layout(legend=dict(orientation="h", y=1.1, font_size=11),
-                       xaxis=dict(showgrid=False),
-                       yaxis=dict(showgrid=True, gridcolor="#F1F5F9"))
-    fig4.update_xaxes(
-        rangeselector=dict(
-            buttons=[
-                dict(count=1, label="1A", step="year", stepmode="backward"),
-                dict(count=3, label="3A", step="year", stepmode="backward"),
-                dict(step="all", label="Todo"),
-            ]
+    # Regimen de planilla
+    st.markdown('<p class="section-header">Régimen de Planilla</p>', unsafe_allow_html=True)
+    if "REGIMEN PLANILLA" not in df.columns:
+        st.info("No se encontró la columna REGIMEN PLANILLA en la fuente de datos.")
+    else:
+        d4 = (
+            df.groupby("REGIMEN PLANILLA")["DNI"]
+            .nunique()
+            .sort_values(ascending=False)
+            .reset_index()
         )
-    )
-    st.plotly_chart(fig4, use_container_width=True, config={"displayModeBar": False})
+        d4.columns = ["REGIMEN PLANILLA", "N"]
+        d4 = d4[d4["REGIMEN PLANILLA"] != "S/I"]
+
+        if d4.empty:
+            st.info("No hay datos disponibles para Régimen de Planilla con los filtros actuales.")
+        else:
+            fig4 = px.bar(
+                d4.head(10),
+                x="N",
+                y="REGIMEN PLANILLA",
+                orientation="h",
+                color="N",
+                color_continuous_scale=["#A7F3D0", "#16A34A"],
+                text="N",
+            )
+            fig4 = chart_layout(fig4)
+            fig4 = style_horizontal_bar(fig4, max_value=d4["N"].max(), y_tick_size=11, left_margin=240)
+            fig4.update_layout(coloraxis_showscale=False)
+            st.plotly_chart(fig4, use_container_width=True, config={"displayModeBar": False})
 
 
 # ── Geography tab ─────────────────────────────────────────────────────────────
