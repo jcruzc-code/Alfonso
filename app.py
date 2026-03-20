@@ -131,6 +131,17 @@ st.markdown(
         margin-bottom: 1rem;
     }
 
+    .st-key-top_clientes_scroll {
+        overflow-y: scroll !important;
+    }
+    .st-key-top_clientes_scroll::-webkit-scrollbar {
+        width: 10px;
+    }
+    .st-key-top_clientes_scroll::-webkit-scrollbar-thumb {
+        background: #94A3B8;
+        border-radius: 8px;
+    }
+
     /* Dashboard title */
     .dashboard-title {
         font-size: 1.6rem;
@@ -694,14 +705,15 @@ def tab_analysis(df: pd.DataFrame) -> None:
     with col1:
         st.markdown('<p class="section-header">Top Clientes · DNI únicos</p>', unsafe_allow_html=True)
         d = (df.groupby("CLIENTE")["DNI"].nunique()
-             .sort_values(ascending=False).head(10).reset_index())
+             .sort_values(ascending=False).reset_index())
         d.columns = ["CLIENTE", "N"]
         fig = px.bar(d, x="N", y="CLIENTE", orientation="h",
                      color="N", color_continuous_scale=["#C7D2FE", "#4F46E5"], text="N")
         fig = chart_layout(fig)
         fig = style_horizontal_bar(fig, max_value=d["N"].max(), y_tick_size=11, left_margin=260)
-        fig.update_layout(coloraxis_showscale=False)
-        st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
+        fig.update_layout(coloraxis_showscale=False, height=max(420, len(d) * 36))
+        with st.container(height=460, key="top_clientes_scroll"):
+            st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
 
     with col2:
         st.markdown('<p class="section-header">Distribución por Unidad</p>', unsafe_allow_html=True)
