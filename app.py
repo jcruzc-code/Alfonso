@@ -739,50 +739,36 @@ def tab_analysis(df: pd.DataFrame) -> None:
         st.plotly_chart(fig3, use_container_width=True, config={"displayModeBar": False})
 
     # Trend row
-    col4, col5 = st.columns(2)
-    with col4:
-        st.markdown('<p class="section-header">Ingresos vs Ceses por mes</p>', unsafe_allow_html=True)
-        ing = (df["FECHA DE INGRESO"].dropna().dt.to_period("M")
-               .value_counts().sort_index().rename("Ingresos").reset_index())
-        ing.columns = ["Periodo", "Ingresos"]
-        ing["Periodo"] = ing["Periodo"].dt.to_timestamp()
-        ces = (df["FECHA DE CESE"].dropna().dt.to_period("M")
-               .value_counts().sort_index().rename("Ceses").reset_index())
-        ces.columns = ["Periodo", "Ceses"]
-        ces["Periodo"] = ces["Periodo"].dt.to_timestamp()
-        merged = pd.merge(ing, ces, on="Periodo", how="outer").sort_values("Periodo").fillna(0)
-        fig4 = go.Figure()
-        fig4.add_trace(go.Scatter(x=merged["Periodo"], y=merged["Ingresos"],
-                                  name="Ingresos", line=dict(color="#4F46E5", width=2),
-                                  fill="tozeroy", fillcolor="rgba(79,70,229,0.08)"))
-        fig4.add_trace(go.Scatter(x=merged["Periodo"], y=merged["Ceses"],
-                                  name="Ceses", line=dict(color="#EF4444", width=2, dash="dot")))
-        fig4 = chart_layout(fig4, height=260)
-        fig4.update_layout(legend=dict(orientation="h", y=1.1, font_size=11),
-                            xaxis=dict(showgrid=False),
-                            yaxis=dict(showgrid=True, gridcolor="#F1F5F9"))
-        fig4.update_xaxes(
-            rangeselector=dict(
-                buttons=[
-                    dict(count=1, label="1A", step="year", stepmode="backward"),
-                    dict(count=3, label="3A", step="year", stepmode="backward"),
-                    dict(step="all", label="Todo"),
-                ]
-            )
+    st.markdown('<p class="section-header">Ingresos vs Ceses por mes</p>', unsafe_allow_html=True)
+    ing = (df["FECHA DE INGRESO"].dropna().dt.to_period("M")
+           .value_counts().sort_index().rename("Ingresos").reset_index())
+    ing.columns = ["Periodo", "Ingresos"]
+    ing["Periodo"] = ing["Periodo"].dt.to_timestamp()
+    ces = (df["FECHA DE CESE"].dropna().dt.to_period("M")
+           .value_counts().sort_index().rename("Ceses").reset_index())
+    ces.columns = ["Periodo", "Ceses"]
+    ces["Periodo"] = ces["Periodo"].dt.to_timestamp()
+    merged = pd.merge(ing, ces, on="Periodo", how="outer").sort_values("Periodo").fillna(0)
+    fig4 = go.Figure()
+    fig4.add_trace(go.Scatter(x=merged["Periodo"], y=merged["Ingresos"],
+                              name="Ingresos", line=dict(color="#4F46E5", width=2),
+                              fill="tozeroy", fillcolor="rgba(79,70,229,0.08)"))
+    fig4.add_trace(go.Scatter(x=merged["Periodo"], y=merged["Ceses"],
+                              name="Ceses", line=dict(color="#EF4444", width=2, dash="dot")))
+    fig4 = chart_layout(fig4, height=260)
+    fig4.update_layout(legend=dict(orientation="h", y=1.1, font_size=11),
+                       xaxis=dict(showgrid=False),
+                       yaxis=dict(showgrid=True, gridcolor="#F1F5F9"))
+    fig4.update_xaxes(
+        rangeselector=dict(
+            buttons=[
+                dict(count=1, label="1A", step="year", stepmode="backward"),
+                dict(count=3, label="3A", step="year", stepmode="backward"),
+                dict(step="all", label="Todo"),
+            ]
         )
-        st.plotly_chart(fig4, use_container_width=True, config={"displayModeBar": False})
-
-    with col5:
-        st.markdown('<p class="section-header">Régimen de Planilla</p>', unsafe_allow_html=True)
-        if "REGIMEN PLANILLA" in df.columns:
-            reg = df["REGIMEN PLANILLA"].value_counts().head(8).reset_index()
-            reg.columns = ["REGIMEN", "N"]
-            fig5 = px.bar(reg, x="N", y="REGIMEN", orientation="h",
-                          color="N", color_continuous_scale=["#BAE6FD", "#0EA5E9"], text="N")
-            fig5 = chart_layout(fig5, height=260)
-            fig5 = style_horizontal_bar(fig5, max_value=reg["N"].max(), y_tick_size=10, left_margin=190)
-            fig5.update_layout(coloraxis_showscale=False)
-            st.plotly_chart(fig5, use_container_width=True, config={"displayModeBar": False})
+    )
+    st.plotly_chart(fig4, use_container_width=True, config={"displayModeBar": False})
 
 
 # ── Geography tab ─────────────────────────────────────────────────────────────
